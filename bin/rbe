@@ -1,0 +1,115 @@
+#!/usr/bin/env ruby
+
+Signal.trap('SIGINT') {
+  puts
+  exit 1
+}
+
+require 'yaml'
+require 'io/console'
+require 'thor'
+require 'everyday_thor_util'
+require 'everyday-plugins'
+require 'keychain'
+
+EverydayThorUtil::SubCommandTypes.def_types(:command_ids, :flag, :command, :helper)
+EverydayThorUtil::SubCommandTypes.def_helper(:helper, :print_info)
+
+module Rbe
+  class DataStore
+  end
+  class DefaultCommands
+    extend Plugin
+
+    register :flag, name: :debug, parent: nil, aliases: %w(-d), type: :boolean, desc: 'print out some debug info'
+
+    register(:command, id: :path, parent: nil, name: 'path', short_desc: 'path', desc: 'print out the path of the current file') { puts __FILE__ }
+
+    register(:helper, name: 'debug?', global: true) {
+      if options.has_key?('debug') || options.has_key?(:debug)
+        options[:debug]
+      else
+        d = ENV['debug']
+        d == '1' || d == 1 || d == 'true' || d == 't'
+      end
+    }
+
+    register(:helper, name: 'debug_if', global: true) { |met, &block| print_info(met, &block) if debug? }
+
+    register(:helper, name: 'testpass', global: true) { |pw|
+      test = `echo "#{pw}" | sudo -S echo "Success" 2>&1`.chomp
+      test == 'Success'
+    }
+
+    register(:helper, name: 'getpass', global: true) {
+      user = `whoami`.chomp
+      begin
+        print "Password for user #{user}: "
+        pw = STDIN.noecho(&:gets)
+        puts
+      end until testpass(pw)
+      [user, pw]
+    }
+
+    register(:command, id: :auth, parent: nil, name: 'auth', short_desc: 'auth', desc: 'authenticate and save password in keychain') {
+      debug_if(__method__) { |p| eval p }
+      user, pw = getpass
+      kc = Keychain.generic_passwords.where(service: 'rbe').first
+      if kc.nil?
+        Keychain.generic_passwords.create(service: 'rbe', password: pw, account: user)
+      else
+        kc.password = pw
+      end
+      puts 'Success!'
+    }
+
+    register(:command, id: :test_auth, parent: nil, name: 'test_auth', short_desc: 'test-auth', desc: 'test stored password') {
+      debug_if(__method__) { |p| eval p }
+      kc = Keychain.generic_passwords.where(service: 'rbe').first
+      if kc.nil?
+        puts 'You need to call `rbe auth` first!'
+      else
+        pw   = kc.password
+        puts testpass(pw) ? 'Success!' : 'Failure'
+      end
+    }
+
+    register(:command, id: :unauth, parent: nil, name: 'unauth', short_desc: 'unauth', desc: 'remove stored password from keychain') {
+      debug_if(__method__) { |p| eval p }
+      kc = Keychain.generic_passwords.where(service: 'rbe').first
+      if kc.nil?
+        puts 'No stored password!'
+      else
+        kc.delete
+        kc = Keychain.generic_passwords.where(service: 'rbe').first
+        puts kc.nil? ? 'Password forgotten' : 'Failure to forget password'
+      end
+    }
+
+    register(:helper, name: 'array_to_args', global: true) { |arr|
+      arr.map { |v| v.start_with?('-') ? v : "\"#{v}\"" }
+    }
+
+    register(:command, id: :sudo, parent: nil, aliases: %w(s), name: 'sudo', short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |*args|
+      debug_if(__method__) { |p| eval p }
+      cmd = args.delete_at(0)
+      arr = array_to_args(args)
+      kc  = Keychain.generic_passwords.where(service: 'rbe').first
+      if kc.nil?
+        _, pw = getpass
+      else
+        pw = kc.password
+        unless testpass(pw)
+          puts 'Stored password invalid!'
+          _, pw = getpass
+        end
+      end
+      system("echo '#{pw}' | sudo -S #{cmd} #{args.join(' ')}")
+    }
+  end
+end
+
+root_command = Class.new(Thor)
+Plugins.get :command, root_command, nil
+
+root_command.start(ARGV)
