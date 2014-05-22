@@ -17,11 +17,64 @@ EverydayThorUtil::SubCommandTypes.def_helper(:helper, :print_info)
 
 module Rbe
   class DataStore
+    class << self
+      attr_accessor :autosave
+
+      def commands=(commands)
+        @commands = commands
+        self.save if self.autosave
+      end
+
+      def commands
+        @commands ||= load
+      end
+
+      def command(cmd_id)
+        if self.commands.has_key?(cmd_id)
+          [self.commands[cmd_id][:sudo], self.commands[cmd_id]]
+        elsif cmd_id.end_with?('_s') && self.commands.has_key?(cmd_id[0..-3])
+          [true, self.commands[cmd_id[0..-3]]]
+        elsif cmd_id.end_with?('_s_s')
+          command(cmd_id[0..-3])
+        else
+          [false, nil]
+        end
+      end
+
+      def load
+        @commands = File.exist?(File.expand_path('~/commands.rbe.yaml')) ? YAML::load_file(File.expand_path('~/commands.rbe.yaml')) : {}
+      end
+
+      def save
+        IO.write(File.expand_path('~/commands.rbe.yaml'), self.commands.to_yaml)
+      end
+    end
+    class << self.commands
+      attr_accessor :data_store
+
+      alias :old_assign :[]=
+
+      def []=(id, dep)
+        old_assign(id, dep)
+        self.data_store.save if self.data_store.autosave
+        self
+      end
+
+      alias :old_delete :delete
+
+      def delete(id, &block)
+        v = old_delete(id, &block)
+        self.data_store.save if self.data_store.autosave
+        v
+      end
+    end
+    self.commands.data_store = self
+    self.autosave            = true
   end
   class DefaultCommands
     extend Plugin
 
-    register :flag, name: :debug, parent: nil, aliases: %w(-d), type: :boolean, desc: 'print out some debug info'
+    # register :flag, name: :debug, parent: nil, aliases: %w(-d), type: :boolean, desc: 'print out some debug info'
 
     register(:command, id: :path, parent: nil, name: 'path', short_desc: 'path', desc: 'print out the path of the current file') { puts __FILE__ }
 
@@ -38,7 +91,7 @@ module Rbe
 
     register(:helper, name: 'testpass', global: true) { |pw|
       test = `echo "#{pw}" | sudo -S echo "Success" 2>&1`.chomp
-      test == 'Success'
+      test.include?('Success')
     }
 
     register(:helper, name: 'getpass', global: true) {
@@ -52,9 +105,8 @@ module Rbe
     }
 
     register(:command, id: :auth, parent: nil, name: 'auth', short_desc: 'auth', desc: 'authenticate and save password in keychain') {
-      debug_if(__method__) { |p| eval p }
       user, pw = getpass
-      kc = Keychain.generic_passwords.where(service: 'rbe').first
+      kc       = Keychain.generic_passwords.where(service: 'rbe').first
       if kc.nil?
         Keychain.generic_passwords.create(service: 'rbe', password: pw, account: user)
       else
@@ -64,18 +116,16 @@ module Rbe
     }
 
     register(:command, id: :test_auth, parent: nil, name: 'test_auth', short_desc: 'test-auth', desc: 'test stored password') {
-      debug_if(__method__) { |p| eval p }
       kc = Keychain.generic_passwords.where(service: 'rbe').first
       if kc.nil?
         puts 'You need to call `rbe auth` first!'
       else
-        pw   = kc.password
+        pw = kc.password
         puts testpass(pw) ? 'Success!' : 'Failure'
       end
     }
 
     register(:command, id: :unauth, parent: nil, name: 'unauth', short_desc: 'unauth', desc: 'remove stored password from keychain') {
-      debug_if(__method__) { |p| eval p }
       kc = Keychain.generic_passwords.where(service: 'rbe').first
       if kc.nil?
         puts 'No stored password!'
@@ -90,26 +140,117 @@ module Rbe
       arr.map { |v| v.start_with?('-') ? v : "\"#{v}\"" }
     }
 
-    register(:command, id: :sudo, parent: nil, aliases: %w(s), name: 'sudo', short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |*args|
-      debug_if(__method__) { |p| eval p }
-      cmd = args.delete_at(0)
+    register(:helper, name: 'print_cmd', global: true) { |do_sudo, cmd, *args|
       arr = array_to_args(args)
-      kc  = Keychain.generic_passwords.where(service: 'rbe').first
-      if kc.nil?
-        _, pw = getpass
-      else
-        pw = kc.password
-        unless testpass(pw)
-          puts 'Stored password invalid!'
+      puts "> #{do_sudo ? 'sudo ' : ''}#{cmd} #{arr.join(' ')}"
+    }
+
+    register(:helper, name: 'run_cmd', global: true) { |do_sudo, cmd, *args|
+      arr = array_to_args(args)
+      if do_sudo
+        kc = Keychain.generic_passwords.where(service: 'rbe').first
+        if kc.nil?
           _, pw = getpass
+        else
+          pw = kc.password
+          unless testpass(pw)
+            puts 'Stored password invalid!'
+            _, pw = getpass
+          end
         end
+        system("echo '#{pw}' | sudo -S #{cmd} #{arr.join(' ')}")
+      else
+        system("#{cmd} #{arr.join(' ')}")
       end
-      system("echo '#{pw}' | sudo -S #{cmd} #{args.join(' ')}")
+    }
+
+    register(:command, id: :sudo, parent: nil, aliases: %w(s), name: 'sudo', short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |*args|
+      cmd = args.delete_at(0)
+      run_cmd(true, cmd, *args)
+    }
+
+    register :command, id: :cmd, parent: nil, aliases: %w(command c), name: 'cmd', short_desc: 'cmd SUBCOMMAND ARGS...', desc: 'configure/run stored commands'
+
+    register(:command, id: :cmd_add, parent: :cmd, aliases: %w(reg register), name: 'add', short_desc: 'add cmd_id cmd args...', desc: 'register a command by name') { |cmd_id, cmd, *args|
+      if cmd == 'sudo'
+        sudo = true
+        cmd  = args.shift
+      else
+        sudo = false
+      end
+      DataStore.commands[cmd_id] = { command: cmd, sudo: sudo, args: args }
+    }
+
+    register(:command, id: :cmd_group_add, parent: :cmd, aliases: %w(group_reg group_register), name: 'group_add', short_desc: 'group-add cmd_id cmd...', desc: 'register a command group by name') { |cmd_id, *cmds|
+      DataStore.commands[cmd_id] = { command: Array(cmds), sudo: false, args: nil }
+    }
+
+    register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
+      cmds = DataStore.commands.keys
+      cmds = cmds.grep(cmd_id) if cmd_id
+      cmds.sort!
+      if cmds.nil? || cmds.empty?
+        puts "#{' ' * indent}Did not find any commands matching #{cmd_id}"
+      else
+        longest_cmd = lc || cmds.map { |v| v.to_s.length }.max
+        cmds.each { |cmd|
+          info = DataStore.commands[cmd]
+          if info[:command].is_a?(Array)
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n"
+            lc2 = info[:command].map { |v| v.to_s.length }.max
+            info[:command].each { |cmd2| print_list(cmd2, indent + longest_cmd + 7, lc2) }
+            puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
+          else
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo] ? 'sudo ' : ''}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
+          end
+        }
+      end
+    }
+
+    register(:command, id: :cmd_list, parent: :cmd, aliases: %w(ls), name: 'list', short_desc: 'list [cmd_id]', desc: 'list registered commands that match argument or all commands if no argument provided') { |cmd_id = nil|
+      # cmds = DataStore.commands.keys
+      # cmds = cmds.grep(cmd_id) if cmd_id
+      # cmds.sort!
+      # if cmds.nil? || cmds.empty?
+      #   puts "Did not find any commands matching #{cmd_id}"
+      # else
+      #   longest_cmd = cmds.map { |v| v.to_s.length }.max
+      #   cmds.each { |cmd|
+      #     info = DataStore.commands[cmd]
+      #     if info[:command].is_a?(Array)
+      #       puts "#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n#{info[:command].map { |cmd2| info2 = DataStore.commands[cmd2]; "#{' ' * (longest_cmd + 6)} #{info2[:sudo] ? 'sudo ' : ''}#{info2[:command]} #{array_to_args(info2[:args]).join(' ')}" }.join("\n")}\n#{' ' * (longest_cmd + 4)} ]"
+      #     else
+      #       puts "#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo] ? 'sudo ' : ''}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
+      #     end
+      #   }
+      # end
+      print_list(cmd_id)
+    }
+
+    register(:helper, name: 'exec_cmd', global: true) { |cmd_id|
+      cmd = DataStore.command(cmd_id)
+      if cmd
+        if cmd[1][:command].is_a?(Array)
+          puts "> #{cmd[0] ? 'sudo ' : ''}rbe cmd group-exec #{cmd_id.to_s}"
+          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}")}
+        else
+          print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args])
+          run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args])
+        end
+      else
+        puts "Could not find command #{cmd_id.to_s}"
+      end
+    }
+
+    register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo)') { |cmd_id|
+      exec_cmd(cmd_id)
     }
   end
 end
 
 root_command = Class.new(Thor)
 Plugins.get :command, root_command, nil
+
+EverydayThorUtil::SubCommandTypes.add_debugging(root_command, nil, 'debug')
 
 root_command.start(ARGV)
