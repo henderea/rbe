@@ -219,7 +219,7 @@ module Rbe
           cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}")}
         else
           print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
-          # run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
+          run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
         end
       else
         puts "Could not find command #{cmd_id.to_s}"
