@@ -208,22 +208,6 @@ module Rbe
     }
 
     register(:command, id: :cmd_list, parent: :cmd, aliases: %w(ls), name: 'list', short_desc: 'list [cmd_id]', desc: 'list registered commands that match argument or all commands if no argument provided') { |cmd_id = nil|
-      # cmds = DataStore.commands.keys
-      # cmds = cmds.grep(cmd_id) if cmd_id
-      # cmds.sort!
-      # if cmds.nil? || cmds.empty?
-      #   puts "Did not find any commands matching #{cmd_id}"
-      # else
-      #   longest_cmd = cmds.map { |v| v.to_s.length }.max
-      #   cmds.each { |cmd|
-      #     info = DataStore.commands[cmd]
-      #     if info[:command].is_a?(Array)
-      #       puts "#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n#{info[:command].map { |cmd2| info2 = DataStore.commands[cmd2]; "#{' ' * (longest_cmd + 6)} #{info2[:sudo] ? 'sudo ' : ''}#{info2[:command]} #{array_to_args(info2[:args]).join(' ')}" }.join("\n")}\n#{' ' * (longest_cmd + 4)} ]"
-      #     else
-      #       puts "#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo] ? 'sudo ' : ''}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
-      #     end
-      #   }
-      # end
       print_list(cmd_id)
     }
 
@@ -244,6 +228,10 @@ module Rbe
 
     register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo)') { |cmd_id|
       exec_cmd(cmd_id)
+    }
+
+    register(:command, id: :cmd_remove, parent: :cmd, aliases: %w(rm unreg unregister delete), name: 'remove', short_desc: 'remove cmd_id', desc: 'remove a registered command or command group') { |cmd_id|
+      DataStore.commands.delete(cmd_id) if DataStore.commands.has_key?(cmd_id)
     }
   end
 end
