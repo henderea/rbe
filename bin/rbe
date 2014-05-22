@@ -211,23 +211,23 @@ module Rbe
       print_list(cmd_id)
     }
 
-    register(:helper, name: 'exec_cmd', global: true) { |cmd_id|
+    register(:helper, name: 'exec_cmd', global: true) { |cmd_id, *extra_args|
       cmd = DataStore.command(cmd_id)
       if cmd
         if cmd[1][:command].is_a?(Array)
           puts "> #{cmd[0] ? 'sudo ' : ''}rbe cmd group-exec #{cmd_id.to_s}"
           cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}")}
         else
-          print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args])
-          run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args])
+          print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
+          # run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
         end
       else
         puts "Could not find command #{cmd_id.to_s}"
       end
     }
 
-    register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo)') { |cmd_id|
-      exec_cmd(cmd_id)
+    register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id [extra_args...]', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo) (extra_args only used for single commands, not groups)') { |cmd_id, *extra_args|
+      exec_cmd(cmd_id, *extra_args)
     }
 
     register(:command, id: :cmd_remove, parent: :cmd, aliases: %w(rm unreg unregister delete), name: 'remove', short_desc: 'remove cmd_id', desc: 'remove a registered command or command group') { |cmd_id|
