@@ -197,7 +197,7 @@ module Rbe
           if info[:command].is_a?(Array)
             puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n"
             lc2 = info[:command].map { |v| v.to_s.length }.max
-            info[:command].each { |cmd2| print_list(cmd2, indent + longest_cmd + 7, lc2) }
+            info[:command].each { |cmd2| print_list("^#{cmd2}$", indent + longest_cmd + 7, lc2) }
             puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
           else
             puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo] ? 'sudo ' : ''}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
