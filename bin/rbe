@@ -7,10 +7,14 @@ Signal.trap('SIGINT') {
 
 require 'yaml'
 require 'io/console'
+require 'shellwords'
 require 'thor'
 require 'everyday_thor_util'
 require 'everyday-plugins'
 require 'keychain'
+require 'everyday-cli-utils'
+include EverydayCliUtils
+import :override
 
 EverydayThorUtil::SubCommandTypes.def_types(:command_ids, :flag, :command, :helper)
 EverydayThorUtil::SubCommandTypes.def_helper(:helper, :print_info)
@@ -49,24 +53,19 @@ module Rbe
         IO.write(File.expand_path('~/commands.rbe.yaml'), self.commands.to_yaml)
       end
     end
+    self.commands.override(:[]=) { |id, dep|
+      rv = self.overrides.call_override(:[]=, id, dep)
+      self.data_store.save if self.data_store.autosave
+      rv
+    }
+    self.commands.override(:delete) { |id, &block|
+      v = self.overrides.delete(id, &block)
+      self.data_store.save if self.data_store.autosave
+      v
+    }
+
     class << self.commands
       attr_accessor :data_store
-
-      alias :old_assign :[]=
-
-      def []=(id, dep)
-        old_assign(id, dep)
-        self.data_store.save if self.data_store.autosave
-        self
-      end
-
-      alias :old_delete :delete
-
-      def delete(id, &block)
-        v = old_delete(id, &block)
-        self.data_store.save if self.data_store.autosave
-        v
-      end
     end
     self.commands.data_store = self
     self.autosave            = true
@@ -89,8 +88,8 @@ module Rbe
 
     register(:helper, name: 'debug_if', global: true) { |met, &block| print_info(met, &block) if debug? }
 
-    register(:helper, name: 'testpass', global: true) { |pw|
-      test = `echo "#{pw}" | sudo -S echo "Success" 2>&1`.chomp
+    register(:helper, name: 'testpass', global: true) { |pw = nil|
+      test = pw.nil? ? `sudo echo "Success" 2>&1`.chomp : `echo "#{pw}" | sudo -S echo "Success" 2>&1`.chomp
       test.include?('Success')
     }
 
@@ -137,7 +136,7 @@ module Rbe
     }
 
     register(:helper, name: 'array_to_args', global: true) { |arr|
-      arr.map { |v| v.start_with?('-') ? v : "\"#{v}\"" }
+      arr.map { |v| Shellwords.escape(v).gsub(/\\*\+/, '+') }
     }
 
     register(:helper, name: 'print_cmd', global: true) { |do_sudo, cmd, *args|
@@ -158,7 +157,7 @@ module Rbe
             _, pw = getpass
           end
         end
-        system("echo '#{pw}' | sudo -S #{cmd} #{arr.join(' ')}")
+        system(testpass ? "sudo #{cmd} #{arr.join(' ')}" : "echo '#{pw}' | sudo -S #{cmd} #{arr.join(' ')}")
       else
         system("#{cmd} #{arr.join(' ')}")
       end
@@ -187,7 +186,7 @@ module Rbe
 
     register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
       cmds = DataStore.commands.keys
-      cmds = cmds.grep(cmd_id) if cmd_id
+      cmds = cmds.grep(/.*#{cmd_id}.*/) if cmd_id
       cmds.sort!
       if cmds.nil? || cmds.empty?
         puts "#{' ' * indent}Did not find any commands matching #{cmd_id}"
@@ -211,12 +210,27 @@ module Rbe
       print_list(cmd_id)
     }
 
+    register(:helper, name: 'extract_args', global: true) { |cmd_id, *args|
+      arr = []
+      found = true
+      args.each { |v|
+        if v.start_with?('+')
+          cur_id           = v[1..-1]
+          found = cur_id == cmd_id || cur_id.start_with?("#{cmd_id}+")
+          arr << cur_id[(cmd_id.length)..-1] if cur_id.start_with?("#{cmd_id}+")
+        elsif found
+          arr << v
+        end
+      }
+      arr
+    }
+
     register(:helper, name: 'exec_cmd', global: true) { |cmd_id, *extra_args|
       cmd = DataStore.command(cmd_id)
       if cmd
         if cmd[1][:command].is_a?(Array)
-          puts "> #{cmd[0] ? 'sudo ' : ''}rbe cmd group-exec #{cmd_id.to_s}"
-          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}")}
+          puts "> #{cmd[0] ? 'sudo ' : ''}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}"
+          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}", *extract_args(c, *extra_args))}
         else
           print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
           run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
@@ -226,7 +240,7 @@ module Rbe
       end
     }
 
-    register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id [extra_args...]', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo) (extra_args only used for single commands, not groups)') { |cmd_id, *extra_args|
+    register(:command, id: :cmd_exec, parent: :cmd, aliases: %w(do e group-exec ge), name: 'exec', short_desc: 'exec cmd_id [extra_args...]', desc: 'execute registered command (or command group) that matches argument (append _s to force sudo) (extra_args used normally for single commands, use +cmd_id to specify for a certain cmd, +cmd_grp_id+cmd_id for a subgroup command, and so on)') { |cmd_id, *extra_args|
       exec_cmd(cmd_id, *extra_args)
     }
 
