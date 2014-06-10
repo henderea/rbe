@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 Signal.trap('SIGINT') {
+  Process.waitall
   puts
   exit 1
 }
@@ -31,18 +32,43 @@ module Rbe
 
       def commands
         @commands ||= load
+        migrate
       end
 
       def command(cmd_id)
         if self.commands.has_key?(cmd_id)
           [self.commands[cmd_id][:sudo], self.commands[cmd_id]]
         elsif cmd_id.end_with?('_s') && self.commands.has_key?(cmd_id[0..-3])
-          [true, self.commands[cmd_id[0..-3]]]
+          ['sudo', self.commands[cmd_id[0..-3]]]
         elsif cmd_id.end_with?('_s_s')
           command(cmd_id[0..-3])
+        elsif cmd_id.end_with?('_rs_s')
+          command(cmd_id[0..-3])
+        elsif cmd_id.end_with?('_rs') && self.commands.has_key?(cmd_id[0..-4])
+          ['rvmsudo', self.commands[cmd_id[0..-4]]]
+        elsif cmd_id.end_with?('_rs_rs')
+          command(cmd_id[0..-4])
+        elsif cmd_id.end_with?('_s_rs')
+          command(cmd_id[0..-4])
         else
-          [false, nil]
+          [nil, nil]
         end
+      end
+
+      def migrate
+        changed = false
+        @commands.each_key { |k|
+          sudo = @commands[k][:sudo]
+          if sudo.is_a?(TrueClass)
+            changed = true
+            @commands[k][:sudo] = 'sudo'
+          elsif sudo.is_a?(FalseClass)
+            changed = true
+            @commands[k][:sudo] = nil
+          end
+        }
+        save if changed
+        @commands
       end
 
       def load
@@ -139,14 +165,16 @@ module Rbe
       arr.map { |v| Shellwords.escape(v).gsub(/\\*\+/, '+') }
     }
 
-    register(:helper, name: 'print_cmd', global: true) { |do_sudo, cmd, *args|
+    register(:helper, name: 'print_cmd', global: true) { |sudo, cmd, *args|
       arr = array_to_args(args)
-      puts "> #{do_sudo ? 'sudo ' : ''}#{cmd} #{arr.join(' ')}"
+      puts "> #{sudo.nil? ? '' : "#{sudo} "}#{cmd} #{arr.join(' ')}"
     }
 
-    register(:helper, name: 'run_cmd', global: true) { |do_sudo, cmd, *args|
+    register(:helper, name: 'run_cmd', global: true) { |sudo_command, cmd, *args|
       arr = array_to_args(args)
-      if do_sudo
+      if sudo_command.nil?
+        system("#{cmd} #{arr.join(' ')}")
+      else
         kc = Keychain.generic_passwords.where(service: 'rbe').first
         if kc.nil?
           _, pw = getpass
@@ -157,31 +185,35 @@ module Rbe
             _, pw = getpass
           end
         end
-        system(testpass ? "sudo #{cmd} #{arr.join(' ')}" : "echo '#{pw}' | sudo -S #{cmd} #{arr.join(' ')}")
-      else
-        system("#{cmd} #{arr.join(' ')}")
+        sudo_command = 'sudo' unless sudo_command == 'rvmsudo' && `which rvmsudo`.chomp.include?('rvmsudo')
+        system(testpass ? "#{sudo_command} #{cmd} #{arr.join(' ')}" : "echo '#{pw}' | #{sudo_command} -S #{cmd} #{arr.join(' ')}")
       end
     }
 
     register(:command, id: :sudo, parent: nil, aliases: %w(s), name: 'sudo', short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |*args|
       cmd = args.delete_at(0)
-      run_cmd(true, cmd, *args)
+      run_cmd(options[:rvm_sudo] ? 'rvmsudo' : 'sudo', cmd, *args)
     }
+
+    register :flag, name: :rvm_sudo, parent: :sudo, aliases: %w(-r), type: :boolean, desc: 'use rvmsudo instead of sudo'
 
     register :command, id: :cmd, parent: nil, aliases: %w(command c), name: 'cmd', short_desc: 'cmd SUBCOMMAND ARGS...', desc: 'configure/run stored commands'
 
     register(:command, id: :cmd_add, parent: :cmd, aliases: %w(reg register), name: 'add', short_desc: 'add cmd_id cmd args...', desc: 'register a command by name') { |cmd_id, cmd, *args|
       if cmd == 'sudo'
-        sudo = true
+        sudo = 'sudo'
         cmd  = args.shift
+      elsif cmd == 'rvmsudo'
+        sudo = 'rvmsudo'
+        cmd = args.shift
       else
-        sudo = false
+        sudo = nil
       end
       DataStore.commands[cmd_id] = { command: cmd, sudo: sudo, args: args }
     }
 
     register(:command, id: :cmd_group_add, parent: :cmd, aliases: %w(group_reg group_register), name: 'group_add', short_desc: 'group-add cmd_id cmd...', desc: 'register a command group by name') { |cmd_id, *cmds|
-      DataStore.commands[cmd_id] = { command: Array(cmds), sudo: false, args: nil }
+      DataStore.commands[cmd_id] = { command: Array(cmds), sudo: nil, args: nil }
     }
 
     register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
@@ -200,7 +232,7 @@ module Rbe
             info[:command].each { |cmd2| print_list("^#{cmd2}$", indent + longest_cmd + 7, lc2) }
             puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
           else
-            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo] ? 'sudo ' : ''}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo].nil? ? '' : "#{info[:sudo]} "}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
           end
         }
       end
@@ -211,12 +243,12 @@ module Rbe
     }
 
     register(:helper, name: 'extract_args', global: true) { |cmd_id, *args|
-      arr = []
+      arr   = []
       found = true
       args.each { |v|
         if v.start_with?('+')
-          cur_id           = v[1..-1]
-          found = cur_id == cmd_id || cur_id.start_with?("#{cmd_id}+")
+          cur_id = v[1..-1]
+          found  = cur_id == cmd_id || cur_id.start_with?("#{cmd_id}+")
           arr << cur_id[(cmd_id.length)..-1] if cur_id.start_with?("#{cmd_id}+")
         elsif found
           arr << v
@@ -229,8 +261,8 @@ module Rbe
       cmd = DataStore.command(cmd_id)
       if cmd
         if cmd[1][:command].is_a?(Array)
-          puts "> #{cmd[0] ? 'sudo ' : ''}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}"
-          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0] ? '_s' : ''}", *extract_args(c, *extra_args))}
+          puts "> #{cmd[0].nil? ? '' : "#{cmd[0]} "}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}"
+          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0].nil? ? '' : (cmd[0] == 'rvmsudo' ? '_rs' : '_s')}", *extract_args(c, *extra_args)) }
         else
           print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
           run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
