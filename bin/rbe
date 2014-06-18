@@ -162,7 +162,7 @@ module Rbe
     }
 
     register(:helper, name: 'array_to_args', global: true) { |arr|
-      arr.map { |v| (v.start_with?('>') || v.start_with?('|')) ? v : Shellwords.escape(v).gsub(/\\*\+/, '+') }
+      arr.map { |v| (v =~ /^(\||\d?>|<|\$\()/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+') : v }
     }
 
     register(:helper, name: 'print_cmd', global: true) { |sudo, cmd, *args|
