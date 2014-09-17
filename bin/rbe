@@ -36,22 +36,29 @@ module Rbe
       end
 
       def command(cmd_id)
-        if self.commands.has_key?(cmd_id)
-          [self.commands[cmd_id][:sudo], self.commands[cmd_id]]
-        elsif cmd_id.end_with?('_s') && self.commands.has_key?(cmd_id[0..-3])
-          ['sudo', self.commands[cmd_id[0..-3]]]
-        elsif cmd_id.end_with?('_s_s')
-          command(cmd_id[0..-3])
-        elsif cmd_id.end_with?('_rs_s')
-          command(cmd_id[0..-3])
-        elsif cmd_id.end_with?('_rs') && self.commands.has_key?(cmd_id[0..-4])
-          ['rvmsudo', self.commands[cmd_id[0..-4]]]
-        elsif cmd_id.end_with?('_rs_rs')
-          command(cmd_id[0..-4])
-        elsif cmd_id.end_with?('_s_rs')
-          command(cmd_id[0..-4])
+        cmd = self.command2(cmd_id)
+        if cmd
+          cmd[0] ||= cmd[2][:sudo]
+          cmd
         else
-          [nil, nil]
+          nil
+        end
+      end
+
+      def command2(cmd_id, sc = nil, sl = nil)
+        if self.commands.has_key?(cmd_id)
+          # [sc || self.commands[cmd_id][:sudo], sl.nil? ? self.commands[cmd_id][:silent] : sl, self.commands[cmd_id]]
+          [sc, sl, self.commands[cmd_id]]
+        elsif cmd_id.end_with?('_sl')
+          command2(cmd_id[0..-4], sc, true)
+        elsif cmd_id.end_with?('_nsl')
+          command2(cmd_id[0..-5], sc, false)
+        elsif cmd_id.end_with?('_s')
+          command2(cmd_id[0..-3], 'sudo', sl)
+        elsif cmd_id.end_with?('_rs')
+          command2(cmd_id[0..-4], 'rvmsudo', sl)
+        else
+          nil
         end
       end
 
@@ -162,7 +169,7 @@ module Rbe
     }
 
     register(:helper, name: 'array_to_args', global: true) { |arr|
-      arr.map { |v| (v =~ /^(\||\d?>|<|\$\()/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+') : v }
+      arr.map { |v| (v =~ /^(\||\d?>|<|\$\(|;)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+') : v }
     }
 
     register(:helper, name: 'print_cmd', global: true) { |sudo, cmd, *args|
@@ -217,22 +224,27 @@ module Rbe
     }
 
     register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
-      cmds = DataStore.commands.keys
-      cmds = cmds.grep(/.*#{cmd_id}.*/) if cmd_id
-      cmds.sort!
+      if(lc)
+        cmds = []
+        cmds << cmd_id if DataStore.command2(cmd_id)
+      else
+        cmds = DataStore.commands.keys
+        cmds = cmds.grep(/.*#{cmd_id}.*/) if cmd_id
+        cmds.sort!
+      end
       if cmds.nil? || cmds.empty?
         puts "#{' ' * indent}Did not find any commands matching #{cmd_id}"
       else
         longest_cmd = lc || cmds.map { |v| v.to_s.length }.max
         cmds.each { |cmd|
-          info = DataStore.commands[cmd]
-          if info[:command].is_a?(Array)
+          info = DataStore.command2(cmd)
+          if info[2][:command].is_a?(Array)
             puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n"
-            lc2 = info[:command].map { |v| v.to_s.length }.max
-            info[:command].each { |cmd2| print_list("^#{cmd2}$", indent + longest_cmd + 7, lc2) }
+            lc2 = info[2][:command].map { |v| v.to_s.length }.max
+            info[2][:command].each { |cmd2| print_list("#{cmd2}#{info[0].nil? ? '' : (info[0] == 'rvmsudo' ? '_rs' : '_s')}#{info[1].nil? ? '' : (info[1] ? '_sl' : '_nsl')}", indent + longest_cmd + 7, lc2) }
             puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
           else
-            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[:sudo].nil? ? '' : "#{info[:sudo]} "}#{info[:command]} #{array_to_args(info[:args]).join(' ')}"
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[1] ? '(silent) ' : ''}#{info[0].nil? ? '' : "#{info[0]} "}#{info[2][:command]} #{array_to_args(info[2][:args]).join(' ')}"
           end
         }
       end
@@ -259,13 +271,13 @@ module Rbe
 
     register(:helper, name: 'exec_cmd', global: true) { |cmd_id, *extra_args|
       cmd = DataStore.command(cmd_id)
-      if cmd
-        if cmd[1][:command].is_a?(Array)
-          puts "> #{cmd[0].nil? ? '' : "#{cmd[0]} "}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}"
-          cmd[1][:command].each { |c| exec_cmd("#{c}#{cmd[0].nil? ? '' : (cmd[0] == 'rvmsudo' ? '_rs' : '_s')}", *extract_args(c, *extra_args)) }
+      if cmd && cmd[2]
+        if cmd[2][:command].is_a?(Array)
+          puts "> #{cmd[0].nil? ? '' : "#{cmd[0]} "}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}" unless cmd[1]
+          cmd[2][:command].each { |c| exec_cmd("#{c}#{cmd[0].nil? ? '' : (cmd[0] == 'rvmsudo' ? '_rs' : '_s')}#{cmd[1].nil? ? '' : (cmd[1] ? '_sl' : '_nsl')}", *extract_args(c, *extra_args)) }
         else
-          print_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
-          run_cmd(cmd[0], cmd[1][:command], *cmd[1][:args], *extra_args)
+          print_cmd(cmd[0], cmd[2][:command], *cmd[2][:args], *extra_args) unless cmd[1]
+          run_cmd(cmd[0], cmd[2][:command], *cmd[2][:args], *extra_args)
         end
       else
         puts "Could not find command #{cmd_id.to_s}"
