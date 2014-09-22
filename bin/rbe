@@ -27,12 +27,25 @@ module Rbe
 
       def commands=(commands)
         @commands = commands
-        self.save if self.autosave
+        self.save_commands if self.autosave
       end
 
       def commands
-        @commands ||= load
+        @commands ||= load_commands
         migrate
+      end
+
+      def vars=(vars)
+        @vars = vars
+        self.save_vars if self.autosave
+      end
+
+      def vars
+        @vars ||= load_vars
+      end
+
+      def temp_vars
+        @temp_vars ||= {}
       end
 
       def command(cmd_id)
@@ -62,45 +75,77 @@ module Rbe
         end
       end
 
+      def var(var_name)
+        if self.temp_vars.has_key?(var_name)
+          self.temp_vars[var_name]
+        elsif self.vars.has_key?(var_name)
+          self.vars[var_name]
+        else
+          nil
+        end
+      end
+
       def migrate
         changed = false
         @commands.each_key { |k|
           sudo = @commands[k][:sudo]
           if sudo.is_a?(TrueClass)
-            changed = true
+            changed             = true
             @commands[k][:sudo] = 'sudo'
           elsif sudo.is_a?(FalseClass)
-            changed = true
+            changed             = true
             @commands[k][:sudo] = nil
           end
         }
-        save if changed
+        save_commands if changed
         @commands
       end
 
-      def load
+      def load_commands
         @commands = File.exist?(File.expand_path('~/commands.rbe.yaml')) ? YAML::load_file(File.expand_path('~/commands.rbe.yaml')) : {}
       end
 
-      def save
+      def save_commands
         IO.write(File.expand_path('~/commands.rbe.yaml'), self.commands.to_yaml)
+      end
+
+      def load_vars
+        @vars = File.exist?(File.expand_path('~/vars.rbe.yaml')) ? YAML::load_file(File.expand_path('~/vars.rbe.yaml')) : {}
+      end
+
+      def save_vars
+        IO.write(File.expand_path('~/vars.rbe.yaml'), self.vars.to_yaml)
       end
     end
     self.commands.override(:[]=) { |id, dep|
       rv = self.overrides.call_override(:[]=, id, dep)
-      self.data_store.save if self.data_store.autosave
+      self.data_store.save_commands if self.data_store.autosave
       rv
     }
     self.commands.override(:delete) { |id, &block|
       v = self.overrides.delete(id, &block)
-      self.data_store.save if self.data_store.autosave
+      self.data_store.save_commands if self.data_store.autosave
+      v
+    }
+    self.vars.override(:[]=) { |id, dep|
+      rv = self.overrides.call_override(:[]=, id, dep)
+      self.data_store.save_vars if self.data_store.autosave
+      rv
+    }
+    self.vars.override(:delete) { |id, &block|
+      v = self.overrides.delete(id, &block)
+      self.data_store.save_vars if self.data_store.autosave
       v
     }
 
     class << self.commands
       attr_accessor :data_store
     end
+    class << self.vars
+      attr_accessor :data_store
+    end
     self.commands.data_store = self
+    self.vars.data_store     = self
     self.autosave            = true
   end
   class DefaultCommands
@@ -169,7 +214,10 @@ module Rbe
     }
 
     register(:helper, name: 'array_to_args', global: true) { |arr|
-      arr.map { |v| (v =~ /^(\||\d?>|<|\$\(|;)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+') : v }
+      arr.map { |v|
+        v = v.gsub(/{{([\w\d]+)}}/) { |_| DataStore.var($1) }
+        (v =~ /^(\||\d?>|<|\$\(|;)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+') : v
+      }
     }
 
     register(:helper, name: 'print_cmd', global: true) { |sudo, cmd, *args|
@@ -212,7 +260,7 @@ module Rbe
         cmd  = args.shift
       elsif cmd == 'rvmsudo'
         sudo = 'rvmsudo'
-        cmd = args.shift
+        cmd  = args.shift
       else
         sudo = nil
       end
@@ -224,7 +272,7 @@ module Rbe
     }
 
     register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
-      if(lc)
+      if lc
         cmds = []
         cmds << cmd_id if DataStore.command2(cmd_id)
       else
@@ -270,6 +318,7 @@ module Rbe
     }
 
     register(:helper, name: 'exec_cmd', global: true) { |cmd_id, *extra_args|
+      options[:cmd_var].keys.each { |k| DataStore.temp_vars[k.to_s] = options[:cmd_var][k] } if options[:cmd_var]
       cmd = DataStore.command(cmd_id)
       if cmd && cmd[2]
         if cmd[2][:command].is_a?(Array)
@@ -288,8 +337,32 @@ module Rbe
       exec_cmd(cmd_id, *extra_args)
     }
 
+    register :flag, name: :cmd_var, parent: :cmd_exec, aliases: %w(-v), type: :hash, desc: 'set a temporary variable value'
+
     register(:command, id: :cmd_remove, parent: :cmd, aliases: %w(rm unreg unregister delete), name: 'remove', short_desc: 'remove cmd_id', desc: 'remove a registered command or command group') { |cmd_id|
       DataStore.commands.delete(cmd_id) if DataStore.commands.has_key?(cmd_id)
+    }
+
+    register :command, id: :var, parent: nil, aliases: %w(variable v), name: 'var', short_desc: 'var SUBCOMMAND ARGS...', desc: 'configure stored variables'
+
+    register(:command, id: :var_add, parent: :var, name: 'add', short_desc: 'add VAR_NAME DEFAULT_VALUE', desc: 'add/modify a variable default value') { |name, value|
+      DataStore.vars[name] = value
+    }
+
+    register(:command, id: :var_list, parent: :var, aliases: %w(ls), name: 'list', short_desc: 'list [var_name]', desc: 'list the variables with defaults, optionally filtering by variable name') { |var_name = nil|
+      vars = DataStore.vars.keys
+      vars = vars.grep(/.*#{var_name}.*/) if var_name
+      vars.sort!
+      if vars.nil? || vars.empty?
+        puts "Did not find any variables matching #{var_name}"
+      else
+        longest_var = vars.map { |v| v.to_s.length }.max
+        vars.each { |v| puts "#{v.to_s.ljust(longest_var)} => #{DataStore.vars[v].to_s}" }
+      end
+    }
+
+    register(:command, id: :var_remove, parent: :var, aliases: %w(rm delete), name: 'remove', short_desc: 'remove var_name', desc: 'remove a variable default value') { |var_name|
+      DataStore.vars.delete(var_name) if DataStore.vars.has_key(var_name)
     }
   end
 end
