@@ -60,8 +60,19 @@ module Rbe
 
       def command2(cmd_id, sc = nil, sl = nil)
         if self.commands.has_key?(cmd_id)
+          if sl.nil?
+            if cmd_id.end_with?('_sl')
+              sl = true
+            elsif cmd_id.end_with?('_nsl')
+              sl = false
+            end
+          end
           # [sc || self.commands[cmd_id][:sudo], sl.nil? ? self.commands[cmd_id][:silent] : sl, self.commands[cmd_id]]
           [sc, sl, self.commands[cmd_id]]
+        elsif self.commands.has_key?("#{cmd_id}_sl")
+          command2("#{cmd_id}_sl", sc, true)
+        elsif self.commands.has_key?("#{cmd_id}_nsl")
+          command2("#{cmd_id}_nsl", sc, false)
         elsif cmd_id.end_with?('_sl')
           command2(cmd_id[0..-4], sc, true)
         elsif cmd_id.end_with?('_nsl')
