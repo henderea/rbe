@@ -303,7 +303,7 @@ module Rbe
             info[2][:command].each { |cmd2| print_list("#{cmd2}#{info[0].nil? ? '' : (info[0] == 'rvmsudo' ? '_rs' : '_s')}#{info[1].nil? ? '' : (info[1] ? '_sl' : '_nsl')}", indent + longest_cmd + 7, lc2) }
             puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
           else
-            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[1] ? '(silent) ' : ''}#{info[0].nil? ? '' : "#{info[0]} "}#{info[2][:command]} #{array_to_args(info[2][:args]).join(' ')}"
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info[1] ? '(silent) ' : ''}#{info[0].nil? ? '' : "#{info[0]} "}#{info[2][:command].gsub(/{{([\w\d]+)}}/) { |_| DataStore.var($1) }} #{array_to_args(info[2][:args]).join(' ')}"
           end
         }
       end
@@ -336,8 +336,8 @@ module Rbe
           puts "> #{cmd[0].nil? ? '' : "#{cmd[0]} "}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}" unless cmd[1]
           cmd[2][:command].each { |c| exec_cmd("#{c}#{cmd[0].nil? ? '' : (cmd[0] == 'rvmsudo' ? '_rs' : '_s')}#{cmd[1].nil? ? '' : (cmd[1] ? '_sl' : '_nsl')}", *extract_args(c, *extra_args)) }
         else
-          print_cmd(cmd[0], cmd[2][:command], *cmd[2][:args], *extra_args) unless cmd[1]
-          run_cmd(cmd[0], cmd[2][:command], *cmd[2][:args], *extra_args)
+          print_cmd(cmd[0], cmd[2][:command].gsub(/{{([\w\d]+)}}/) { |_| DataStore.var($1) }, *cmd[2][:args], *extra_args) unless cmd[1]
+          run_cmd(cmd[0], cmd[2][:command].gsub(/{{([\w\d]+)}}/) { |_| DataStore.var($1) }, *cmd[2][:args], *extra_args)
         end
       else
         puts "Could not find command #{cmd_id.to_s}"
