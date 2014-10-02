@@ -15,8 +15,9 @@ module Rbe::Cli::Helpers
     }
 
     register(:helper, name: 'exec_cmd', global: true) { |cmd_id, *extra_args|
-      options[:cmd_var].keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = options[:cmd_var][k] } if options[:cmd_var]
       cmd = Rbe::Data::DataStore.command(cmd_id)
+      cmd.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = cmd.vars[k] } if cmd.vars
+      options[:cmd_var].keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = options[:cmd_var][k] } if options[:cmd_var]
       if cmd
         if cmd.command.is_a?(Array)
           puts "> #{cmd.sudo.nil? ? '' : "#{cmd.sudo} "}rbe cmd group-exec #{cmd_id.to_s} #{array_to_args(extra_args).join(' ')}" unless cmd.silent

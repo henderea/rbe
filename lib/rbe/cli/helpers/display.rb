@@ -25,6 +25,7 @@ module Rbe::Cli::Helpers
         longest_cmd = lc || cmds.map { |v| v.to_s.length }.max
         cmds.each { |cmd|
           info = Rbe::Data::DataStore.command(cmd)
+          info.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = info.vars[k] } if info.vars
           if info.command.is_a?(Array)
             puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> [\n"
             lc2 = info.command.map { |v| v.to_s.length }.max

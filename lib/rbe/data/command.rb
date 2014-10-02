@@ -37,7 +37,7 @@ module Rbe::Data
 
     protected :list
 
-    prop(:command, :sudo, :args) { |command, field, data_value|
+    prop(:command, :sudo, :args, :vars) { |command, field, data_value|
       if field == :sudo && command.sudo_override
         command.sudo_override
       else

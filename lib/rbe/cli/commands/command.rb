@@ -17,12 +17,14 @@ module Rbe::Cli::Commands
       else
         sudo = nil
       end
-      Rbe::Data::DataStore.commands[cmd_id] = { command: cmd, sudo: sudo, args: args }
+      Rbe::Data::DataStore.commands[cmd_id] = { command: cmd, sudo: sudo, args: args, vars: nil }
     }
 
     register(:command, id: :cmd_group_add, parent: :cmd, aliases: %w(group_reg group_register), name: 'group_add', short_desc: 'group-add cmd_id cmd...', desc: 'register a command group by name') { |cmd_id, *cmds|
-      Rbe::Data::DataStore.commands[cmd_id] = { command: Array(cmds), sudo: nil, args: nil }
+      Rbe::Data::DataStore.commands[cmd_id] = { command: Array(cmds), sudo: nil, args: nil, vars: options[:cmd_var] }
     }
+
+    register :flag, name: :cmd_var, parent: :cmd_group_add, aliases: %w(-v), type: :hash, desc: 'set a variable value for the commands in the group'
 
     register(:command, id: :cmd_list, parent: :cmd, aliases: %w(ls), name: 'list', short_desc: 'list [cmd_id]', desc: 'list registered commands that match argument or all commands if no argument provided') { |cmd_id = nil|
       print_list(cmd_id)
