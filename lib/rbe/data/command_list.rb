@@ -19,6 +19,10 @@ module Rbe::Data
           changed             = true
           @commands[k][:sudo] = nil
         end
+        unless @commands[k].has_key?(:vars)
+          changed = true
+          @commands[k][:vars] = nil
+        end
       }
       save_commands if changed
       @commands

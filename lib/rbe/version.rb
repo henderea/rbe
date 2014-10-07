@@ -1,3 +1,3 @@
 module Rbe
-  VERSION = '2.8'
+  VERSION = '2.8.3'
 end
