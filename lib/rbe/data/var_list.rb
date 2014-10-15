@@ -18,11 +18,25 @@ module Rbe::Data
       IO.write(File.expand_path('~/vars.rbe.yaml'), @vars.to_yaml)
     end
 
-    def get(var_name)
+    def get(var_name, exit_if_missing_required = false)
+      required = var_name[0] == '#'
+      var_name = var_name[1..-1] if required
       if self.temp_vars.has_key?(var_name)
         self.temp_vars[var_name]
       elsif has_key?(var_name)
         self[var_name]
+      elsif required && exit_if_missing_required
+        puts "missing required variable '#{var_name}'"
+        print 'value: '
+        v = gets.chomp
+        if v.nil? || v.empty?
+          exit 1
+        else
+          self.temp_vars[var_name] = v
+          get("##{var_name}", true)
+        end
+      elsif required
+        "{{##{var_name}}}"
       else
         nil
       end

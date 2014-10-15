@@ -6,7 +6,7 @@ module Rbe::Cli::Helpers
     extend Plugin
 
     register(:helper, name: 'run_cmd', global: true) { |sudo_command, cmd, *args|
-      arr = array_to_args(args)
+      arr = array_to_args(args, true)
       if sudo_command.nil?
         system("#{cmd} #{arr.join(' ')}")
       else
