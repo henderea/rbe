@@ -11,6 +11,7 @@ module Rbe::Cli::Helpers
     }
 
     register(:helper, name: 'print_list', global: true) { |cmd_id, indent = 0, lc = false|
+      cmd_id = cmd_id.gsub(/{{([#]?[\w\d]+)}}/) { |_| Rbe::Data::DataStore.var($1) }
       if lc
         cmds = []
         cmds << cmd_id if Rbe::Data::DataStore.command(cmd_id)
@@ -32,7 +33,7 @@ module Rbe::Cli::Helpers
             info.command.each { |cmd2| print_list("#{cmd2}#{info.sudo.nil? ? '' : (info.sudo == 'rvmsudo' ? '_rs' : '_s')}#{info.silent.nil? ? '' : (info.silent ? '_sl' : '_nsl')}", indent + longest_cmd + 7, lc2) }
             puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
           else
-            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info.silent ? '(silent) ' : ''}#{info.sudo.nil? ? '' : "#{info.sudo} "}#{info.command.gsub(/{{([\w\d]+)}}/) { |_| Rbe::Data::DataStore.var($1) }} #{array_to_args(info.args).join(' ')}"
+            puts "#{' ' * indent}#{cmd.to_s.ljust(longest_cmd + 2)}=> #{info.silent ? '(silent) ' : ''}#{info.sudo.nil? ? '' : "#{info.sudo} "}#{info.command.gsub(/{{([#]?[\w\d]+)}}/) { |_| Rbe::Data::DataStore.var($1) }} #{array_to_args(info.args).join(' ')}"
           end
         }
       end

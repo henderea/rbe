@@ -3,8 +3,12 @@ require_relative 'command'
 
 module Rbe::Data
   class CommandList
+    attr_accessor :save_local
+
     def initialize
+      @save_local = false
       load_commands
+      load_local_commands
       migrate
     end
 
@@ -20,12 +24,20 @@ module Rbe::Data
           @commands[k][:sudo] = nil
         end
         unless @commands[k].has_key?(:vars)
-          changed = true
+          changed             = true
           @commands[k][:vars] = nil
         end
       }
       save_commands if changed
       @commands
+    end
+
+    def load_local_commands
+      @local_commands = File.exist?('commands.rbe.yaml') ? YAML::load_file('commands.rbe.yaml') : {}
+    end
+
+    def save_local_commands
+      IO.write('commands.rbe.yaml', @local_commands.to_yaml) unless @no_save
     end
 
     def load_commands
@@ -36,9 +48,14 @@ module Rbe::Data
       IO.write(File.expand_path('~/commands.rbe.yaml'), @commands.to_yaml) unless @no_save
     end
 
-    def update_command(name, data_hash)
-      @commands[name] = data_hash
-      save_commands
+    def update_command(name, data_hash, local)
+      if local
+        @local_commands[name] = data_hash
+        save_local_commands
+      else
+        @commands[name] = data_hash
+        save_commands
+      end
     end
 
     def command(cmd_id)
@@ -56,9 +73,9 @@ module Rbe::Data
         end
         # [sc || self.commands[cmd_id][:sudo], sl.nil? ? self.commands[cmd_id][:silent] : sl, self.commands[cmd_id]]
         # { sudo: sc, silent: sl, command: self[cmd_id] }
-        cmd = self[cmd_id]
+        cmd               = self[cmd_id]
         cmd.sudo_override = sc
-        cmd.silent = sl
+        cmd.silent        = sl
         cmd
       elsif has_key?("#{cmd_id}_sl")
         command2("#{cmd_id}_sl", sc, true)
@@ -78,36 +95,58 @@ module Rbe::Data
     end
 
     def has_key?(key)
-      @commands.has_key?(key)
+      @local_commands.has_key?(key) || @commands.has_key?(key)
     end
 
     def keys
-      @commands.keys
+      (@local_commands.keys + @commands.keys).uniq
     end
 
     def [](key)
-      val = @commands[key]
+      val = @local_commands[key]
       if val
-        Rbe::Data::Command.new(key, self, val)
+        local = true
+      else
+        val   = @commands[key]
+        local = false
+      end
+      if val
+        Rbe::Data::Command.new(key, self, val, local)
       else
         nil
       end
     end
 
     def []=(key, value)
-      if value.is_a?(Rbe::Data::Command)
-        @commands[key] = value.data_hash
-      elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
-        @commands[key] = value
+      if save_local
+        if value.is_a?(Rbe::Data::Command)
+          @local_commands[key] = value.data_hash
+        elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
+          @local_commands[key] = value
+        else
+          raise ArgumentError, 'Invalid data input'
+        end
+        save_local_commands
       else
-        raise ArgumentError, 'Invalid data input'
+        if value.is_a?(Rbe::Data::Command)
+          @commands[key] = value.data_hash
+        elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
+          @commands[key] = value
+        else
+          raise ArgumentError, 'Invalid data input'
+        end
+        save_commands
       end
-      save_commands
     end
 
     def delete(key)
-      @commands.delete(key)
-      save_commands
+      if save_local
+        @local_commands.delete(key)
+        save_local_commands
+      else
+        @commands.delete(key)
+        save_commands
+      end
     end
 
     def no_save
@@ -116,6 +155,6 @@ module Rbe::Data
       @no_save = false
     end
 
-    protected :save_commands, :load_commands, :migrate, :command2
+    protected :save_commands, :load_commands, :save_local_commands, :load_local_commands, :migrate, :command2
   end
 end

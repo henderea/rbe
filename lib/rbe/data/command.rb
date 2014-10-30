@@ -2,7 +2,7 @@ module Rbe::Data
   class Command
     attr_reader :data_hash, :list, :name
 
-    attr_accessor :sudo_override, :silent
+    attr_accessor :sudo_override, :silent, :local
 
     class << self
       def prop(*fields, &get_block)
@@ -26,12 +26,6 @@ module Rbe::Data
         hash && hash.is_a?(Hash) && @props.all? { |p| hash.has_key?(p) }
       end
 
-      # def ro_prop(*fields)
-      #   fields.each { |field|
-      #     self.create_method(field.to_sym) { self[field.to_sym] }
-      #   }
-      # end
-
       protected :prop
     end
 
@@ -45,11 +39,12 @@ module Rbe::Data
       end
     }
 
-    def initialize(name, list, data_hash)
+    def initialize(name, list, data_hash, local = false)
       raise ArgumentError, 'Invalid data hash' unless Rbe::Data::Command.validate!(data_hash)
       @name      = name
       @list      = list
       @data_hash = data_hash
+      @local     = local
     end
 
     def [](key)
@@ -58,12 +53,12 @@ module Rbe::Data
 
     def []=(key, value)
       self.data_hash[key.to_sym] = value
-      self.list.update_command(self.name, self.data_hash)
+      self.list.update_command(self.name, self.data_hash, self.local)
     end
 
     def delete(key)
       self.data_hash.delete(key.to_sym)
-      self.list.update_command(self.name, self.data_hash)
+      self.list.update_command(self.name, self.data_hash, self.local)
     end
   end
 end

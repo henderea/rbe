@@ -25,8 +25,8 @@ module Rbe::Data
       #   self.commands.command2(cmd_id)
       # end
 
-      def var(var_name, exit_if_missing_required = false)
-        vars.get(var_name, exit_if_missing_required)
+      def var(var_name, prompt_if_missing_required = false)
+        vars.get(var_name, prompt_if_missing_required)
       end
 
       def user
