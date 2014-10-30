@@ -9,7 +9,7 @@ module Rbe::Cli::Helpers
     register(:helper, name: 'array_to_args', global: true) { |arr, prompt_if_missing_required = false|
       arr.map { |v|
         v = v.gsub(/{{([#]?[\w\d]+)}}/) { |_| Rbe::Data::DataStore.var($1, prompt_if_missing_required) }
-        (v =~ /^(\||\d?>|<|\$\(|;)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+').gsub(/\\*[{]\\*[{]\\*([#])?/, '{{\1').gsub(/\\*[}]\\*[}]/, '}}').gsub(/\\*[*]/, '*') : v
+        (v =~ /^(\||\d?>|<|\$\(|;|[&]{1,2}$)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+').gsub(/\\*[{]\\*[{]\\*([#])?/, '{{\1').gsub(/\\*[}]\\*[}]/, '}}').gsub(/\\*[*]/, '*') : v
       }
     }
 
