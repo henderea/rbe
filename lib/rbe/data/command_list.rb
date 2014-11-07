@@ -62,7 +62,7 @@ module Rbe::Data
       self.command2(cmd_id)
     end
 
-    def command2(cmd_id, sc = nil, sl = nil)
+    def command2(cmd_id, sc = nil, sl = nil, loop = false)
       if has_key?(cmd_id)
         if sl.nil?
           if cmd_id.end_with?('_sl')
@@ -71,24 +71,28 @@ module Rbe::Data
             sl = false
           end
         end
-        # [sc || self.commands[cmd_id][:sudo], sl.nil? ? self.commands[cmd_id][:silent] : sl, self.commands[cmd_id]]
-        # { sudo: sc, silent: sl, command: self[cmd_id] }
+        loop              ||= cmd_id.end_with?('_loop')
         cmd               = self[cmd_id]
         cmd.sudo_override = sc
         cmd.silent        = sl
+        cmd.should_loop   = loop
         cmd
       elsif has_key?("#{cmd_id}_sl")
-        command2("#{cmd_id}_sl", sc, true)
+        command2("#{cmd_id}_sl", sc, true, loop)
       elsif has_key?("#{cmd_id}_nsl")
-        command2("#{cmd_id}_nsl", sc, false)
+        command2("#{cmd_id}_nsl", sc, false, loop)
+      elsif has_key?("#{cmd_id}_loop")
+        command2("#{cmd_id}_loop", sc, sl, true)
       elsif cmd_id.end_with?('_sl')
-        command2(cmd_id[0..-4], sc, true)
+        command2(cmd_id[0..-4], sc, true, loop)
       elsif cmd_id.end_with?('_nsl')
-        command2(cmd_id[0..-5], sc, false)
+        command2(cmd_id[0..-5], sc, false, loop)
+      elsif cmd_id.end_with?('_loop')
+        command2(cmd_id[0..-6], sc, sl, true)
       elsif cmd_id.end_with?('_s')
-        command2(cmd_id[0..-3], 'sudo', sl)
+        command2(cmd_id[0..-3], 'sudo', sl, loop)
       elsif cmd_id.end_with?('_rs')
-        command2(cmd_id[0..-4], 'rvmsudo', sl)
+        command2(cmd_id[0..-4], 'rvmsudo', sl, loop)
       else
         nil
       end

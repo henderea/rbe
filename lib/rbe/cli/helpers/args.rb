@@ -6,9 +6,8 @@ module Rbe::Cli::Helpers
   class Args
     extend Plugin
 
-    register(:helper, name: 'array_to_args', global: true) { |arr, prompt_if_missing_required = false|
-      arr.map { |v|
-        v = v.gsub(/{{([#]?[\w\d]+)}}/) { |_| Rbe::Data::DataStore.var($1, prompt_if_missing_required) }
+    register(:helper, name: 'array_to_args', global: true) { |cmd_arr, arr, prompt_if_missing_required = false|
+      subs_vars(cmd_arr, arr, prompt_if_missing_required).first.map { |v|
         (v =~ /^(\||\d?>|<|\$\(|;|[&]{1,2}$)/).nil? ? Shellwords.escape(v).gsub(/\\*\+/, '+').gsub(/\\*[{]\\*[{]\\*([#])?/, '{{\1').gsub(/\\*[}]\\*[}]/, '}}').gsub(/\\*[*]/, '*') : v
       }
     }

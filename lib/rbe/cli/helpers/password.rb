@@ -21,8 +21,8 @@ module Rbe::Cli::Helpers
       pw
     }
 
-    register(:helper, name: 'run_sudo', global: true) { |sudo_command, cmd, *args|
-      arr = array_to_args(args)
+    register(:helper, name: 'run_sudo', global: true) { |sudo_command, cmd, cmd_args, args|
+      arr = array_to_args(cmd_args, args)
       pw  = Rbe::Data::DataStore.password.get
       if pw.nil?
         pw = getpass

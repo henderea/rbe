@@ -9,7 +9,7 @@ module Rbe::Cli::Commands
 
     register(:command, id: :var_add, parent: :var, name: 'add', short_desc: 'add VAR_NAME DEFAULT_VALUE', desc: 'add/modify a variable default value') { |name, value|
       Rbe::Data::DataStore.vars.save_local = options[:local]
-      Rbe::Data::DataStore.vars[name] = value
+      Rbe::Data::DataStore.vars[name]      = value
     }
 
     register :flag, name: :local, parent: :var_add, aliases: %w(-l), type: :boolean, desc: 'add/modify local variables'

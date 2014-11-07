@@ -25,7 +25,7 @@ module Rbe::Cli::Commands
 
     register(:command, id: :cmd_group_add, parent: :cmd, aliases: %w(group_reg group_register), name: 'group_add', short_desc: 'group-add cmd_id cmd...', desc: 'register a command group by name') { |cmd_id, *cmds|
       Rbe::Data::DataStore.commands.save_local = options[:local]
-      Rbe::Data::DataStore.commands[cmd_id] = { command: Array(cmds), sudo: nil, args: nil, vars: options[:var] }
+      Rbe::Data::DataStore.commands[cmd_id]    = { command: Array(cmds), sudo: nil, args: nil, vars: options[:var] }
     }
 
     register :flag, name: :var, parent: :cmd_group_add, aliases: %w(-v), type: :hash, desc: 'set a variable value for the commands in the group'

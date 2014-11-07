@@ -2,7 +2,7 @@ module Rbe::Data
   class Command
     attr_reader :data_hash, :list, :name
 
-    attr_accessor :sudo_override, :silent, :local
+    attr_accessor :sudo_override, :silent, :local, :should_loop
 
     class << self
       def prop(*fields, &get_block)
