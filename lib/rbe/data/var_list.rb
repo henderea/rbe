@@ -34,9 +34,9 @@ module Rbe::Data
     def get(var_name, prompt_if_missing_required = false, default = nil)
       required = var_name[0] == '#'
       var_name = var_name[1..-1] if required
-      if self.temp_vars.has_key?(var_name)
+      if var_name != '_' && self.temp_vars.has_key?(var_name)
         self.temp_vars[var_name]
-      elsif has_key?(var_name)
+      elsif var_name != '_' && has_key?(var_name)
         self[var_name]
       elsif default
         default
@@ -60,7 +60,13 @@ module Rbe::Data
     end
 
     def []=(var_name, value)
-      if save_local
+      if var_name == '_'
+        puts '_ is a reserved variable name'
+        exit 1
+      elsif (var_name =~ /^[\w\d]+$/).nil?
+        puts "#{var_name} is not a valid variable name.  Variable names can only contain letters, numbers, and the underscore character."
+        exit 1
+      elsif save_local
         @local_vars[var_name] = value
         save_local_vars
       else
