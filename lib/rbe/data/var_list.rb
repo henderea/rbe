@@ -36,9 +36,10 @@ module Rbe::Data
       var_name = var_name[1..-1] if required
       if var_name != '_' && self.temp_vars.has_key?(var_name)
         self.temp_vars[var_name]
-      elsif var_name != '_' && has_key?(var_name)
+      elsif var_name != '_' && !var_name.start_with?('_') && has_key?(var_name)
         self[var_name]
       elsif default
+        self.temp_vars[var_name] = default
         default
       elsif required && prompt_if_missing_required
         v = Readline.readline("#{var_name} (press ENTER to cancel): ")
@@ -65,6 +66,9 @@ module Rbe::Data
         exit 1
       elsif (var_name =~ /^[\w\d]+$/).nil?
         puts "#{var_name} is not a valid variable name.  Variable names can only contain letters, numbers, and the underscore character."
+        exit 1
+      elsif var_name.start_with?('_')
+        puts 'Variables starting with an underscore are temporary variables only'
         exit 1
       elsif save_local
         @local_vars[var_name] = value

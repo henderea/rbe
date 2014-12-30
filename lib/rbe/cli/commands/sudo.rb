@@ -1,13 +1,8 @@
-require 'everyday-plugins'
+require 'everyday_thor_util/builder'
+include EverydayThorUtil::Builder
 
-module Rbe::Cli::Commands
-  class Sudo
-    extend Plugin
+root_command[:sudo] = command(aliases: %w(s), short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |cmd, *args|
+  run_sudo(options[:rvm_sudo] ? 'rvmsudo' : 'sudo', cmd, [], args)
+}
 
-    register(:command, id: :sudo, parent: nil, aliases: %w(s), name: 'sudo', short_desc: 'sudo COMMAND ARGS...', desc: 'run a sudo with the stored password filled in for you') { |cmd, *args|
-      run_sudo(options[:rvm_sudo] ? 'rvmsudo' : 'sudo', cmd, [], args)
-    }
-
-    register :flag, name: :rvm_sudo, parent: :sudo, aliases: %w(-r), type: :boolean, desc: 'use rvmsudo instead of sudo'
-  end
-end
+root_command[:sudo][:rvm_sudo] = flag(aliases: %w(-r), type: :boolean, desc: 'use rvmsudo instead of sudo')

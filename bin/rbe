@@ -10,16 +10,13 @@ module Rbe
 end
 
 require 'thor'
-require 'everyday_thor_util'
-require 'everyday-plugins'
+require 'everyday_thor_util/builder'
+# require 'everyday-plugins'
 require 'rbe/cli/helpers'
 require 'rbe/cli/commands'
 
-EverydayThorUtil::SubCommandTypes.def_types(:command_ids, :flag, :command, :helper)
+include EverydayThorUtil::Builder
 
-root_command = Class.new(Thor)
-Plugins.get :command, root_command, nil
-
-EverydayThorUtil::SubCommandTypes.add_debugging(root_command, nil, 'debug')
-
-root_command.start(ARGV)
+rc = build!
+add_debugging(rc, nil, 'debug')
+rc.start(ARGV)
