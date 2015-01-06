@@ -11,6 +11,11 @@ module Rbe::Data
       load_local_vars
     end
 
+    def write_vars
+      save_vars unless @vars.empty?
+      save_local_vars unless @local_vars.empty?
+    end
+
     def temp_vars
       @temp_vars ||= {}
     end

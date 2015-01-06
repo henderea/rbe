@@ -30,3 +30,8 @@ root_command[:var][:remove] = command(aliases: %w(rm delete), short_desc: 'remov
 }
 
 root_command[:var][:remove][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'remove local variables')
+
+root_command[:var][:rewrite] = command(aliases: %w(rw), short_desc: 'rewrite', desc: 'rewrite the variable storage files to fix formatting differences caused by manual editing') {
+  Rbe::Data::DataStore.vars.write_vars
+  puts 'Vars rewritten'
+}
