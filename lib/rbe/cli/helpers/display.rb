@@ -28,6 +28,7 @@ global.helpers[:print_list] =->(cmd_id, indent = 0, lc = false) {
     longest_cmd = lc || cmds.map { |v| clean_cmd(v.to_s).length }.max
     cmds.each { |cmd|
       info = Rbe::Data::DataStore.command(cmd)
+      Rbe::Data::DataStore.vars.push_temp
       info.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = info.vars[k] } if info.vars
       if info.command.is_a?(Array)
         puts "#{' ' * indent}#{clean_cmd(cmd.to_s).ljust(longest_cmd + 2)}=> [\n"
@@ -37,6 +38,7 @@ global.helpers[:print_list] =->(cmd_id, indent = 0, lc = false) {
       else
         puts "#{' ' * indent}#{clean_cmd(cmd.to_s).ljust(longest_cmd + 2)}=> #{info.silent ? '(silent) ' : ''}#{info.sudo.nil? ? '' : "#{info.sudo} "}#{subs_vars([info.command], [], true).first.first} #{array_to_args(info.args, []).join(' ')}"
       end
+      Rbe::Data::DataStore.vars.pop_temp
     }
   end
 }

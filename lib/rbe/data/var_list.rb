@@ -16,6 +16,17 @@ module Rbe::Data
       save_local_vars unless @local_vars.empty?
     end
 
+    def push_temp
+      @temp_stack ||= []
+      @temp_stack.unshift(self.temp_vars.select { |_, _| true })
+    end
+
+    def pop_temp
+      @temp_stack ||= []
+      tmp = @temp_stack.shift
+      @temp_vars = tmp if tmp
+    end
+
     def temp_vars
       @temp_vars ||= {}
     end
