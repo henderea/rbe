@@ -6,17 +6,6 @@ Signal.trap('SIGINT') {
   exit 1
 }
 
-module Rbe
-end
+require 'rbe'
 
-require 'thor'
-require 'everyday_thor_util/builder'
-# require 'everyday-plugins'
-require 'rbe/cli/helpers'
-require 'rbe/cli/commands'
-
-include EverydayThorUtil::Builder
-
-rc = build!
-add_debugging(rc, nil, 'debug')
-rc.start(ARGV)
+@rc.start(ARGV)
