@@ -25,13 +25,13 @@ global.helpers[:exec_cmd] =->(cmd_id, *extra_args) {
   if cmd
     cmd.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = cmd.vars[k] } if cmd.vars
     if cmd.command.is_a?(Array)
-      puts "> #{cmd.sudo.nil? ? '' : "#{cmd.sudo} "}rbe cmd group-exec #{clean_cmd(cmd_id.to_s)} #{array_to_args([], extra_args).join(' ')}" unless cmd.silent
+      Rbe::IO.puts "> #{cmd.sudo.nil? ? '' : "#{cmd.sudo} "}rbe cmd group-exec #{clean_cmd(cmd_id.to_s)} #{array_to_args([], extra_args).join(' ')}" unless cmd.silent
       cmd.command.each { |c| exec_cmd("#{c}#{cmd.sudo.nil? ? '' : (cmd.sudo == 'rvmsudo' ? '_rs' : '_s')}#{cmd.silent.nil? ? '' : (cmd.silent ? '_sl' : '_nsl')}", *extract_args(c, *extra_args)) }
     else
       start, part = count_ind_vars(cmd.command, cmd.args)
       if cmd.should_loop  && !StateStore.looping
         if (part + start) > extra_args.count
-          puts "Command #{clean_cmd(cmd_id)} requires a minimum of #{part + start} extra arg#{(part + start) == 1 ? '' : 's'}"
+          Rbe::IO.puts "Command #{clean_cmd(cmd_id)} requires a minimum of #{part + start} extra arg#{(part + start) == 1 ? '' : 's'}"
           exit 1
         else
           args = get_vars([cmd.command, *cmd.args], extra_args)
@@ -41,7 +41,7 @@ global.helpers[:exec_cmd] =->(cmd_id, *extra_args) {
             cur_args = args.slice!(0, part)
             exec_cmd(cmd_id, *cur_args)
             cnt2 = cnt - (args.count.to_f / part.to_f).ceil
-            puts "\n===== #{cnt2} of #{cnt} done (#{'%.2f' % ((cnt2.to_f / cnt.to_f) * 100)}%) =====\n\n"
+            Rbe::IO.puts "\n===== #{cnt2} of #{cnt} done (#{'%.2f' % ((cnt2.to_f / cnt.to_f) * 100)}%) =====\n\n"
           end until args.nil? || args.empty?
           StateStore.looping = false
         end
@@ -53,6 +53,6 @@ global.helpers[:exec_cmd] =->(cmd_id, *extra_args) {
       end
     end
   else
-    puts "Could not find command #{cmd_id.to_s}"
+    Rbe::IO.puts "Could not find command #{cmd_id.to_s}"
   end
 }

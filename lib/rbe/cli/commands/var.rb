@@ -17,7 +17,7 @@ root_command[:var][:list] = command(aliases: %w(ls), short_desc: 'list [var_name
   vars = vars.grep(/.*#{var_name}.*/) if var_name
   vars.sort!
   if vars.nil? || vars.empty?
-    puts "Did not find any variables matching #{var_name}"
+    Rbe::IO.puts "Did not find any variables matching #{var_name}"
   else
     longest_var = vars.map { |v| v.to_s.length }.max
     vars.each { |v| puts "#{v.to_s.ljust(longest_var)} => #{Rbe::Data::DataStore.vars[v].to_s}" }
@@ -33,5 +33,5 @@ root_command[:var][:remove][:local] = flag(aliases: %w(-l), type: :boolean, desc
 
 root_command[:var][:rewrite] = command(aliases: %w(rw), short_desc: 'rewrite', desc: 'rewrite the variable storage files to fix formatting differences caused by manual editing') {
   Rbe::Data::DataStore.vars.write_vars
-  puts 'Vars rewritten'
+  Rbe::IO.puts 'Vars rewritten'
 }

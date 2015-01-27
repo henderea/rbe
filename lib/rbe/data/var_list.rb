@@ -1,5 +1,4 @@
-require 'yaml'
-require 'readline'
+require 'rbe/io'
 
 module Rbe::Data
   class VarList
@@ -32,19 +31,23 @@ module Rbe::Data
     end
 
     def load_local_vars
-      @local_vars = File.exist?('vars.rbe.yaml') ? YAML::load_file('vars.rbe.yaml') : {}
+      # @local_vars = File.exist?('vars.rbe.yaml') ? YAML::load_file('vars.rbe.yaml') : {}
+      @local_vars = Rbe::IO.read_yaml('vars.rbe.yaml', {})
     end
 
     def save_local_vars
-      IO.write('vars.rbe.yaml', @local_vars.to_yaml)
+      # IO.write('vars.rbe.yaml', @local_vars.to_yaml)
+      Rbe::IO.write_yaml('vars.rbe.yaml', @local_vars)
     end
 
     def load_vars
-      @vars = File.exist?(File.expand_path('~/vars.rbe.yaml')) ? YAML::load_file(File.expand_path('~/vars.rbe.yaml')) : {}
+      # @vars = File.exist?(File.expand_path('~/vars.rbe.yaml')) ? YAML::load_file(File.expand_path('~/vars.rbe.yaml')) : {}
+      @vars = Rbe::IO.read_yaml('~/vars.rbe.yaml', {})
     end
 
     def save_vars
-      IO.write(File.expand_path('~/vars.rbe.yaml'), @vars.to_yaml)
+      # IO.write(File.expand_path('~/vars.rbe.yaml'), @vars.to_yaml)
+      Rbe::IO.write_yaml('~/vars.rbe.yaml', @vars)
     end
 
     def get(var_name, prompt_if_missing_required = false, default = nil)
@@ -58,7 +61,7 @@ module Rbe::Data
         self.temp_vars[var_name] = default
         default
       elsif required && prompt_if_missing_required
-        v = Readline.readline("#{var_name} (press ENTER to cancel): ")
+        v = Rbe::IO.readline("#{var_name} (press ENTER to cancel): ")
         if v.nil? || v.empty?
           exit 1
         else
@@ -78,14 +81,14 @@ module Rbe::Data
 
     def []=(var_name, value)
       if var_name == '_'
-        puts '_ is a reserved variable name'
-        exit 1
+        Rbe::IO.puts '_ is a reserved variable name'
+        Rbe::IO.exit 1
       elsif (var_name =~ /^[\w\d]+$/).nil?
-        puts "#{var_name} is not a valid variable name.  Variable names can only contain letters, numbers, and the underscore character."
-        exit 1
+        Rbe::IO.puts "#{var_name} is not a valid variable name.  Variable names can only contain letters, numbers, and the underscore character."
+        Rbe::IO.exit 1
       elsif var_name.start_with?('_')
-        puts 'Variables starting with an underscore are temporary variables only'
-        exit 1
+        Rbe::IO.puts 'Variables starting with an underscore are temporary variables only'
+        Rbe::IO.exit 1
       elsif save_local
         @local_vars[var_name] = value
         save_local_vars

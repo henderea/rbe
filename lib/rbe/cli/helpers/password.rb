@@ -1,4 +1,4 @@
-require 'io/console'
+require 'rbe/io'
 require 'rbe/data/data_store'
 
 require 'everyday_thor_util/builder'
@@ -12,8 +12,8 @@ global.helpers[:testpass] =->(pw = nil) {
 global.helpers[:getpass] =->() {
   user = Rbe::Data::DataStore.user
   begin
-    print "Password for user #{user}: "
-    pw = STDIN.noecho(&:gets)
+    Rbe::IO.print "Password for user #{user}: "
+    pw = Rbe::IO.noecho(&:gets)
     puts
   end until testpass(pw)
   pw
@@ -26,7 +26,7 @@ global.helpers[:run_sudo] =->(sudo_command, cmd, cmd_args, args) {
     pw = getpass
   else
     unless testpass(pw)
-      puts 'Stored password invalid!'
+      Rbe::IO.puts 'Stored password invalid!'
       pw = getpass
     end
   end

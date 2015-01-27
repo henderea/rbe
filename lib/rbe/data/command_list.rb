@@ -1,4 +1,4 @@
-require 'yaml'
+require 'rbe/io'
 require_relative 'command'
 
 module Rbe::Data
@@ -33,19 +33,23 @@ module Rbe::Data
     end
 
     def load_local_commands
-      @local_commands = File.exist?('commands.rbe.yaml') ? YAML::load_file('commands.rbe.yaml') : {}
+      # @local_commands = File.exist?('commands.rbe.yaml') ? YAML::load_file('commands.rbe.yaml') : {}
+      @local_commands = Rbe::IO.read_yaml('commands.rbe.yaml', {})
     end
 
     def save_local_commands
-      IO.write('commands.rbe.yaml', @local_commands.to_yaml) unless @no_save
+      # IO.write('commands.rbe.yaml', @local_commands.to_yaml) unless @no_save
+      Rbe::IO.write_yaml('commands.rbe.yaml', @local_commands) unless @no_save
     end
 
     def load_commands
-      @commands = File.exist?(File.expand_path('~/commands.rbe.yaml')) ? YAML::load_file(File.expand_path('~/commands.rbe.yaml')) : {}
+      # @commands = File.exist?(File.expand_path('~/commands.rbe.yaml')) ? YAML::load_file(File.expand_path('~/commands.rbe.yaml')) : {}
+      @commands = Rbe::IO.read_yaml('~/commands.rbe.yaml', {})
     end
 
     def save_commands
-      IO.write(File.expand_path('~/commands.rbe.yaml'), @commands.to_yaml) unless @no_save
+      # IO.write(File.expand_path('~/commands.rbe.yaml'), @commands.to_yaml) unless @no_save
+      Rbe::IO.write_yaml('~/commands.rbe.yaml', @commands) unless @no_save
     end
 
     def update_command(name, data_hash, local)
