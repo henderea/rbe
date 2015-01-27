@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.7'
   spec.add_development_dependency 'rake', '~> 10.4'
 
-  spec.add_dependency 'everyday_thor_util', '~> 2.0', '>= 2.0.1'
+  spec.add_dependency 'everyday_thor_util', '~> 2.0', '>= 2.0.2'
   spec.add_dependency 'thor', '~> 0.19'
   spec.add_dependency 'ruby-keychain', '~> 0.1'
 end
