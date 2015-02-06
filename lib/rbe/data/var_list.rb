@@ -1,12 +1,14 @@
+require 'everyday_natsort_kernel'
 require 'yaml'
 require 'readline'
 
 module Rbe::Data
   class VarList
-    attr_accessor :save_local
+    attr_accessor :save_local, :search_local
 
     def initialize
-      @save_local = false
+      @save_local   = false
+      @search_local = true
       load_vars
       load_local_vars
     end
@@ -23,12 +25,22 @@ module Rbe::Data
 
     def pop_temp
       @temp_stack ||= []
-      tmp = @temp_stack.shift
-      @temp_vars = tmp if tmp
+      tmp         = @temp_stack.shift
+      @temp_vars  = tmp if tmp
     end
 
     def temp_vars
       @temp_vars ||= {}
+    end
+
+    def sort_vars
+      if @save_local
+        @local_vars = Hash[@local_vars.natural_sort]
+        save_local_vars
+      else
+        @vars = Hash[@vars.natural_sort]
+        save_vars
+      end
     end
 
     def load_local_vars
@@ -53,7 +65,8 @@ module Rbe::Data
       if var_name != '_' && self.temp_vars.has_key?(var_name)
         self.temp_vars[var_name]
       elsif var_name != '_' && !var_name.start_with?('_') && has_key?(var_name)
-        self[var_name]
+        v = self[var_name]
+        v.is_a?(Array) ? v.join(' ') : v
       elsif default
         self.temp_vars[var_name] = default
         default
@@ -73,7 +86,7 @@ module Rbe::Data
     end
 
     def [](var_name)
-      @local_vars.has_key?(var_name) ? @local_vars[var_name] : @vars[var_name]
+      (@local_vars.has_key?(var_name) && @search_local) ? @local_vars[var_name] : @vars[var_name]
     end
 
     def []=(var_name, value)

@@ -1,3 +1,5 @@
+require 'everyday_natsort_kernel'
+
 require 'rbe/data/data_store'
 
 require 'everyday_thor_util/builder'
@@ -11,6 +13,30 @@ root_command[:var][:add] = command(short_desc: 'add VAR_NAME DEFAULT_VALUE', des
 }
 
 root_command[:var][:add][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'add/modify local variables')
+
+root_command[:var][:list_add] = command(short_desc: 'list-add VAR_NAME DEFAULT_VALUES...', desc: 'add/modify a variable default value list') { |name, *values|
+  Rbe::Data::DataStore.vars.save_local = options[:local]
+  Rbe::Data::DataStore.vars[name]      = values
+}
+
+root_command[:var][:list_add][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'add/modify local variable value lists')
+
+root_command[:var][:list_sort] = command(short_desc: 'list-sort VAR_NAME', desc: 'sort a variable default value list') { |name|
+  Rbe::Data::DataStore.vars.save_local   = options[:local]
+  Rbe::Data::DataStore.vars.search_local = options[:local]
+  arr                                    = Rbe::Data::DataStore.vars[name]
+  Rbe::Data::DataStore.vars[name]        = arr.natural_sort if arr.is_a?(Array)
+}
+
+root_command[:var][:list_sort][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'sort local variable value lists')
+
+root_command[:var][:var_sort] = command(short_desc: 'var-sort', desc: 'sort the variables in the vars.rbe.yaml file') {
+  Rbe::Data::DataStore.vars.save_local   = options[:local]
+  Rbe::Data::DataStore.vars.search_local = options[:local]
+  Rbe::Data::DataStore.vars.sort_vars
+}
+
+root_command[:var][:var_sort][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'sort the variables in the local vars.rbe.yaml file')
 
 root_command[:var][:list] = command(aliases: %w(ls), short_desc: 'list [var_name]', desc: 'list the variables with defaults, optionally filtering by variable name') { |var_name = nil|
   vars = Rbe::Data::DataStore.vars.keys

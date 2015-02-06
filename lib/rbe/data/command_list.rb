@@ -1,3 +1,4 @@
+require 'everyday_natsort_kernel'
 require 'yaml'
 require_relative 'command'
 
@@ -30,6 +31,16 @@ module Rbe::Data
       }
       save_commands if changed
       @commands
+    end
+
+    def sort_commands
+      if @save_local
+        @local_commands = Hash[@local_commands.natural_sort]
+        save_local_commands
+      else
+        @commands = Hash[@commands.natural_sort]
+        save_commands
+      end
     end
 
     def load_local_commands
