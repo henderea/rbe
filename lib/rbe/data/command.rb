@@ -6,17 +6,11 @@ module Rbe::Data
 
     class << self
       def prop(*fields, &get_block)
+        get_block = ->(_, _, dv) { dv } unless get_block
         @props ||= []
         fields.each { |field|
           @props << field.to_sym
-          self.create_method(field.to_sym) {
-            data_value = self[field.to_sym]
-            if get_block
-              get_block.call(self, field.to_sym, data_value)
-            else
-              data_value
-            end
-          }
+          self.create_method(field.to_sym) { get_block.call(self, field.to_sym, self[field.to_sym]) }
           self.create_method("#{field.to_s}=".to_sym) { |value| self[field.to_sym] = value }
         }
         @props.uniq!

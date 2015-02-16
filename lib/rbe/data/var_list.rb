@@ -54,15 +54,34 @@ module Rbe::Data
     def get(var_name, prompt_if_missing_required = false, default = nil)
       required = var_name[0] == '#'
       var_name = var_name[1..-1] if required
-      if var_name != '_' && self.temp_vars.has_key?(var_name)
-        self.temp_vars[var_name]
-      elsif var_name != '_' && !var_name.start_with?('_') && has_key?(var_name)
+      get_temp_var(var_name) ||
+          get_reg_var(var_name) ||
+          get_default(var_name, default) ||
+          get_required_prompt(var_name, required, prompt_if_missing_required) ||
+          get_required(var_name, required) ||
+          nil
+    end
+
+    def get_temp_var(var_name)
+      var_name != '_' && self.temp_vars[var_name]
+    end
+
+    def get_reg_var(var_name)
+      var_name != '_' && !var_name.start_with?('_') && has_key?(var_name) && -> {
         v = self[var_name]
         v.is_a?(Array) ? v.join(' ') : v
-      elsif default
+      }.call
+    end
+
+    def get_default(var_name, default)
+      default && -> {
         self.temp_vars[var_name] = default
         default
-      elsif required && prompt_if_missing_required
+      }.call
+    end
+
+    def get_required_prompt(var_name, required, prompt_if_missing_required)
+      required && prompt_if_missing_required && -> {
         v = Readline.readline("#{var_name} (press ENTER to cancel): ")
         if v.nil? || v.empty?
           exit 1
@@ -70,11 +89,11 @@ module Rbe::Data
           self.temp_vars[var_name] = v
           get("##{var_name}", true)
         end
-      elsif required
-        "{{##{var_name}}}"
-      else
-        nil
-      end
+      }.call
+    end
+
+    def get_required(var_name, required)
+      required && "{{##{var_name}}}"
     end
 
     def [](var_name)
@@ -118,6 +137,6 @@ module Rbe::Data
       end
     end
 
-    protected :list, :local_list, :list=, :local_list=, :on_init
+    protected :list, :local_list, :list=, :local_list=, :on_init, :get_temp_var, :get_reg_var, :get_default, :get_required_prompt, :get_required
   end
 end

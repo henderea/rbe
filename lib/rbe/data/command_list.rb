@@ -15,7 +15,7 @@ module Rbe::Data
 
     def local_list=(local_list)
       @local_commands = local_list
-      end
+    end
 
     def list
       @commands
@@ -64,7 +64,20 @@ module Rbe::Data
     end
 
     def command2(cmd_id, sc = nil, sl = nil, loop = false)
-      if has_key?(cmd_id)
+      get_normal(cmd_id, sc, sl, loop) ||
+          get_plus_sl(cmd_id, sc, sl, loop) ||
+          get_plus_nsl(cmd_id, sc, sl, loop) ||
+          get_plus_loop(cmd_id, sc, sl, loop) ||
+          get_sl(cmd_id, sc, sl, loop) ||
+          get_nsl(cmd_id, sc, sl, loop) ||
+          get_loop(cmd_id, sc, sl, loop) ||
+          get_s(cmd_id, sc, sl, loop) ||
+          get_rs(cmd_id, sc, sl, loop) ||
+          nil
+    end
+
+    def get_normal(cmd_id, sc, sl, loop)
+      has_key?(cmd_id) && -> {
         if sl.nil?
           if cmd_id.end_with?('_sl')
             sl = true
@@ -78,25 +91,39 @@ module Rbe::Data
         cmd.silent        = sl
         cmd.should_loop   = loop
         cmd
-      elsif has_key?("#{cmd_id}_sl")
-        command2("#{cmd_id}_sl", sc, true, loop)
-      elsif has_key?("#{cmd_id}_nsl")
-        command2("#{cmd_id}_nsl", sc, false, loop)
-      elsif has_key?("#{cmd_id}_loop")
-        command2("#{cmd_id}_loop", sc, sl, true)
-      elsif cmd_id.end_with?('_sl')
-        command2(cmd_id[0..-4], sc, true, loop)
-      elsif cmd_id.end_with?('_nsl')
-        command2(cmd_id[0..-5], sc, false, loop)
-      elsif cmd_id.end_with?('_loop')
-        command2(cmd_id[0..-6], sc, sl, true)
-      elsif cmd_id.end_with?('_s')
-        command2(cmd_id[0..-3], 'sudo', sl, loop)
-      elsif cmd_id.end_with?('_rs')
-        command2(cmd_id[0..-4], 'rvmsudo', sl, loop)
-      else
-        nil
-      end
+      }.call
+    end
+
+    def get_plus_sl(cmd_id, sc, sl, loop)
+      has_key?("#{cmd_id}_sl") && command2("#{cmd_id}_sl", sc, true, loop)
+    end
+
+    def get_plus_nsl(cmd_id, sc, sl, loop)
+      has_key?("#{cmd_id}_nsl") && command2("#{cmd_id}_nsl", sc, false, loop)
+    end
+
+    def get_plus_loop(cmd_id, sc, sl, loop)
+      has_key?("#{cmd_id}_loop") && command2("#{cmd_id}_loop", sc, sl, true)
+    end
+
+    def get_sl(cmd_id, sc, sl, loop)
+      cmd_id.end_with?('_sl') && command2(cmd_id[0..-4], sc, true, loop)
+    end
+
+    def get_nsl(cmd_id, sc, sl, loop)
+      cmd_id.end_with?('_nsl') && command2(cmd_id[0..-5], sc, false, loop)
+    end
+
+    def get_loop(cmd_id, sc, sl, loop)
+      cmd_id.end_with?('_loop') && command2(cmd_id[0..-6], sc, sl, true)
+    end
+
+    def get_s(cmd_id, sc, sl, loop)
+      cmd_id.end_with?('_s') && command2(cmd_id[0..-3], 'sudo', sl, loop)
+    end
+
+    def get_rs(cmd_id, sc, sl, loop)
+      cmd_id.end_with?('_rs') && command2(cmd_id[0..-4], 'rvmsudo', sl, loop)
     end
 
     def has_key?(key)
@@ -144,6 +171,6 @@ module Rbe::Data
       end
     end
 
-    protected :migrate, :command2, :list, :local_list, :list=, :local_list=, :on_init
+    protected :migrate, :command2, :list, :local_list, :list=, :local_list=, :on_init, :get_normal, :get_plus_sl, :get_plus_nsl, :get_plus_loop, :get_sl, :get_nsl, :get_loop, :get_s, :get_rs
   end
 end
