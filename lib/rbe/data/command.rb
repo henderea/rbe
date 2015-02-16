@@ -6,15 +6,20 @@ module Rbe::Data
 
     class << self
       def prop(*fields, &get_block)
-        fields = fields.map(&:to_sym)
-        get_block ||= ->(_, _, dv) { dv }
-        @props ||= []
-        @props += fields
+        fields = update_props(fields)
+        get_block ||=->(_, _, dv) { dv }
         fields.each { |field|
           self.create_method(field) { get_block.call(self, field, self[field]) }
           self.create_method("#{field.to_s}=".to_sym) { |value| self[field] = value }
         }
+      end
+
+      def update_props(fields)
+        fields = fields.map(&:to_sym)
+        @props ||= []
+        @props += fields
         @props.uniq!
+        fields
       end
 
       def validate!(hash)
