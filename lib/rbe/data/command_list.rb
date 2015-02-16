@@ -133,25 +133,15 @@ module Rbe::Data
     end
 
     def []=(key, value)
-      if save_local
-        if value.is_a?(Rbe::Data::Command)
-          @local_commands[key] = value.data_hash
-        elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
-          @local_commands[key] = value
-        else
-          raise ArgumentError, 'Invalid data input'
-        end
-        save_local_commands
+      cl = save_local ? @local_commands : @commands
+      if value.is_a?(Rbe::Data::Command)
+        cl[key] = value.data_hash
+      elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
+        cl[key] = value
       else
-        if value.is_a?(Rbe::Data::Command)
-          @commands[key] = value.data_hash
-        elsif value.is_a?(Hash) && Rbe::Data::Command.validate!(value)
-          @commands[key] = value
-        else
-          raise ArgumentError, 'Invalid data input'
-        end
-        save_commands
+        raise ArgumentError, 'Invalid data input'
       end
+      save_local ? save_local_commands : save_commands
     end
 
     def delete(key)

@@ -3,6 +3,10 @@ require 'rbe/data/data_store'
 require 'everyday_thor_util/builder'
 include EverydayThorUtil::Builder
 
+global.helpers[:register_temp_vars] =->(vars) {
+  vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = vars[k] } if vars
+}
+
 global.helpers[:subs_vars] =->(cmd_arr, arr, prompt_if_missing_required = false) {
   ind_to_remove = []
   cmd_arr2      = cmd_arr.map { |v|

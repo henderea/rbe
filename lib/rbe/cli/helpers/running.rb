@@ -19,14 +19,14 @@ global.helpers[:run_cmd] =->(sudo_command, cmd, cmd_args, args) {
 }
 
 global.helpers[:exec_cmd] =->(cmd_id, *extra_args) {
-  options[:var].keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = options[:var][k] } if options[:var]
+  register_temp_vars(options[:var])
   cmd_id = subs_vars([cmd_id], extra_args, true).first.first
   cmd    = Rbe::Data::DataStore.command(cmd_id)
   if cmd
-    cmd.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = cmd.vars[k] } if cmd.vars
+    register_temp_vars(cmd.vars)
     if cmd.command.is_a?(Array)
       puts "> #{cmd.sudo.nil? ? '' : "#{cmd.sudo} "}rbe cmd group-exec #{clean_cmd(cmd_id.to_s)} #{array_to_args([], extra_args).join(' ')}" unless cmd.silent
-      cmd.command.each { |c| exec_cmd("#{c}#{cmd.sudo.nil? ? '' : (cmd.sudo == 'rvmsudo' ? '_rs' : '_s')}#{cmd.silent.nil? ? '' : (cmd.silent ? '_sl' : '_nsl')}", *extract_args(c, *extra_args)) }
+      cmd.command.each { |c| exec_cmd(build_command_name(c, cmd.sudo, cmd.silent), *extract_args(c, *extra_args)) }
     else
       start, part = count_ind_vars(cmd.command, cmd.args)
       if cmd.should_loop  && !StateStore.looping

@@ -12,6 +12,10 @@ global.helpers[:print_cmd] =->(sudo, cmd, cmd_args, args) {
   puts "> #{sudo.nil? ? '' : "#{sudo} "}#{clean_cmd(cmd)} #{arr.join(' ')}"
 }
 
+global.helpers[:build_command_name] =->(c, s, sl) {
+  "#{c}#{s.nil? ? '' : (s == 'rvmsudo' ? '_rs' : '_s')}#{sl.nil? ? '' : (sl ? '_sl' : '_nsl')}"
+}
+
 global.helpers[:print_list] =->(cmd_id, indent = 0, lc = false) {
   cmd_id = cmd_id && subs_vars([cmd_id], [], true).first.first
   if lc
@@ -29,11 +33,11 @@ global.helpers[:print_list] =->(cmd_id, indent = 0, lc = false) {
     cmds.each { |cmd|
       info = Rbe::Data::DataStore.command(cmd)
       Rbe::Data::DataStore.vars.push_temp
-      info.vars.keys.each { |k| Rbe::Data::DataStore.temp_vars[k.to_s] = info.vars[k] } if info.vars
+      register_temp_vars(info.vars)
       if info.command.is_a?(Array)
         puts "#{' ' * indent}#{clean_cmd(cmd.to_s).ljust(longest_cmd + 2)}=> [\n"
         lc2 = info.command.map { |v| clean_cmd(v.to_s).length }.max
-        info.command.each { |cmd2| print_list("#{cmd2}#{info.sudo.nil? ? '' : (info.sudo == 'rvmsudo' ? '_rs' : '_s')}#{info.silent.nil? ? '' : (info.silent ? '_sl' : '_nsl')}", indent + longest_cmd + 7, lc2) }
+        info.command.each { |cmd2| print_list(build_command_name(cmd2, info.sudo, info.silent), indent + longest_cmd + 7, lc2) }
         puts "#{' ' * indent}#{' ' * (longest_cmd + 4)} ]"
       else
         puts "#{' ' * indent}#{clean_cmd(cmd.to_s).ljust(longest_cmd + 2)}=> #{info.silent ? '(silent) ' : ''}#{info.sudo.nil? ? '' : "#{info.sudo} "}#{subs_vars([info.command], [], true).first.first} #{array_to_args(info.args, []).join(' ')}"
