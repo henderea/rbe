@@ -26,5 +26,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'everyday_thor_util', '~> 2.0', '>= 2.0.3'
   spec.add_dependency 'thor', '~> 0.19'
   spec.add_dependency 'ruby-keychain', '~> 0.1'
-  spec.add_dependency 'everyday_natsort', '~> 1.0'
+  spec.add_dependency 'everyday_natsort', '~> 1.0', '>= 1.0.2'
 end

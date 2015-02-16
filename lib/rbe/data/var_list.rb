@@ -1,21 +1,39 @@
 require 'everyday_natsort_kernel'
 require 'yaml'
 require 'readline'
+require_relative 'abstract_list'
 
 module Rbe::Data
-  class VarList
-    attr_accessor :save_local, :search_local
+  class VarList < Rbe::Data::AbstractList
+    attr_accessor :search_local
 
-    def initialize
-      @save_local   = false
+    def on_init
       @search_local = true
-      load_vars
-      load_local_vars
+    end
+
+    def local_list
+      @local_vars
+    end
+
+    def local_list=(local_list)
+      @local_vars = local_list
+    end
+
+    def list
+      @vars
+    end
+
+    def list=(list)
+      @vars = list
+    end
+
+    def file_name
+      'vars.rbe.yaml'
     end
 
     def write_vars
-      save_vars unless @vars.empty?
-      save_local_vars unless @local_vars.empty?
+      save_list unless @vars.empty?
+      save_local_list unless @local_vars.empty?
     end
 
     def push_temp
@@ -31,32 +49,6 @@ module Rbe::Data
 
     def temp_vars
       @temp_vars ||= {}
-    end
-
-    def sort_vars
-      if @save_local
-        @local_vars = Hash[@local_vars.natural_sort]
-        save_local_vars
-      else
-        @vars = Hash[@vars.natural_sort]
-        save_vars
-      end
-    end
-
-    def load_local_vars
-      @local_vars = File.exist?('vars.rbe.yaml') ? YAML::load_file('vars.rbe.yaml') : {}
-    end
-
-    def save_local_vars
-      IO.write('vars.rbe.yaml', @local_vars.to_yaml)
-    end
-
-    def load_vars
-      @vars = File.exist?(File.expand_path('~/vars.rbe.yaml')) ? YAML::load_file(File.expand_path('~/vars.rbe.yaml')) : {}
-    end
-
-    def save_vars
-      IO.write(File.expand_path('~/vars.rbe.yaml'), @vars.to_yaml)
     end
 
     def get(var_name, prompt_if_missing_required = false, default = nil)
@@ -101,10 +93,10 @@ module Rbe::Data
         exit 1
       elsif save_local
         @local_vars[var_name] = value
-        save_local_vars
+        save_local_list
       else
         @vars[var_name] = value
-        save_vars
+        save_list
       end
     end
 
@@ -119,13 +111,13 @@ module Rbe::Data
     def delete(var_name)
       if save_local
         @local_vars.delete(var_name)
-        save_local_vars
+        save_local_list
       else
         @vars.delete(var_name)
-        save_vars
+        save_list
       end
     end
 
-    protected :load_vars, :save_vars, :load_local_vars, :save_local_vars
+    protected :list, :local_list, :list=, :local_list=, :on_init
   end
 end

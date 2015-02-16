@@ -26,12 +26,12 @@ root_command[:cmd][:group_add] = command(aliases: %w(group_reg group_register), 
   Rbe::Data::DataStore.commands[cmd_id]    = { command: Array(cmds), sudo: nil, args: nil, vars: options[:var] }
 }
 
-root_command[:cmd][:group_add][:var] = flag(aliases: %w(-v), type: :hash, desc: 'set a variable value for the commands in the group')
+root_command[:cmd][:group_add][:var]   = flag(aliases: %w(-v), type: :hash, desc: 'set a variable value for the commands in the group')
 root_command[:cmd][:group_add][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'add/modify local command groups')
 
 root_command[:cmd][:cmd_sort] = command(short_desc: 'cmd-sort', desc: 'sort the commands in the commands.rbe.yaml file') {
-  Rbe::Data::DataStore.commands.save_local   = options[:local]
-  Rbe::Data::DataStore.commands.sort_commands
+  Rbe::Data::DataStore.commands.save_local = options[:local]
+  Rbe::Data::DataStore.commands.sort_list
 }
 
 root_command[:cmd][:cmd_sort][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'sort the commands in the local commands.rbe.yaml file')

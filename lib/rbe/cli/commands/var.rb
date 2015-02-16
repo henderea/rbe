@@ -33,7 +33,7 @@ root_command[:var][:list_sort][:local] = flag(aliases: %w(-l), type: :boolean, d
 root_command[:var][:var_sort] = command(short_desc: 'var-sort', desc: 'sort the variables in the vars.rbe.yaml file') {
   Rbe::Data::DataStore.vars.save_local   = options[:local]
   Rbe::Data::DataStore.vars.search_local = options[:local]
-  Rbe::Data::DataStore.vars.sort_vars
+  Rbe::Data::DataStore.vars.sort_list
 }
 
 root_command[:var][:var_sort][:local] = flag(aliases: %w(-l), type: :boolean, desc: 'sort the variables in the local vars.rbe.yaml file')

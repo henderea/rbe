@@ -1,16 +1,32 @@
 require 'everyday_natsort_kernel'
 require 'yaml'
 require_relative 'command'
+require_relative 'abstract_list'
 
 module Rbe::Data
-  class CommandList
-    attr_accessor :save_local
-
-    def initialize
-      @save_local = false
-      load_commands
-      load_local_commands
+  class CommandList < Rbe::Data::AbstractList
+    def on_init
       migrate
+    end
+
+    def local_list
+      @local_commands
+    end
+
+    def local_list=(local_list)
+      @local_commands = local_list
+      end
+
+    def list
+      @commands
+    end
+
+    def list=(list)
+      @commands = list
+    end
+
+    def file_name
+      'commands.rbe.yaml'
     end
 
     def migrate
@@ -29,43 +45,17 @@ module Rbe::Data
           @commands[k][:vars] = nil
         end
       }
-      save_commands if changed
+      save_list if changed
       @commands
-    end
-
-    def sort_commands
-      if @save_local
-        @local_commands = Hash[@local_commands.natural_sort]
-        save_local_commands
-      else
-        @commands = Hash[@commands.natural_sort]
-        save_commands
-      end
-    end
-
-    def load_local_commands
-      @local_commands = File.exist?('commands.rbe.yaml') ? YAML::load_file('commands.rbe.yaml') : {}
-    end
-
-    def save_local_commands
-      IO.write('commands.rbe.yaml', @local_commands.to_yaml) unless @no_save
-    end
-
-    def load_commands
-      @commands = File.exist?(File.expand_path('~/commands.rbe.yaml')) ? YAML::load_file(File.expand_path('~/commands.rbe.yaml')) : {}
-    end
-
-    def save_commands
-      IO.write(File.expand_path('~/commands.rbe.yaml'), @commands.to_yaml) unless @no_save
     end
 
     def update_command(name, data_hash, local)
       if local
         @local_commands[name] = data_hash
-        save_local_commands
+        save_local_list
       else
         @commands[name] = data_hash
-        save_commands
+        save_list
       end
     end
 
@@ -141,25 +131,19 @@ module Rbe::Data
       else
         raise ArgumentError, 'Invalid data input'
       end
-      save_local ? save_local_commands : save_commands
+      save_local ? save_local_list : save_list
     end
 
     def delete(key)
       if save_local
         @local_commands.delete(key)
-        save_local_commands
+        save_local_list
       else
         @commands.delete(key)
-        save_commands
+        save_list
       end
     end
 
-    def no_save
-      @no_save = true
-      yield
-      @no_save = false
-    end
-
-    protected :save_commands, :load_commands, :save_local_commands, :load_local_commands, :migrate, :command2
+    protected :migrate, :command2, :list, :local_list, :list=, :local_list=, :on_init
   end
 end
