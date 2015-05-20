@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors     = ['Eric Henderson']
   spec.email       = ['henderea@gmail.com']
   spec.summary     = %q{RuBy Executor}
-  spec.description = %q{A tool for making it easier to run common commands.  Supports storing and automatically filling in your sudo password. Also supports saving common commands and calling them by name.  Groups of commands can also be saved and called by name.}
+  spec.description = %q{A tool for making it easier to run common commands.  Supports storing and automatically filling in your sudo password. Also supports saving common commands and calling them by name.  Groups of commands can also be saved and called by name.  Commands can take parameters and plug them into specific points in the command or just append them on the end.  Also supports a variable system that allows local and global variables, temporary variables, and required variables (which will ask for the value if it isn't already known).}
   spec.homepage    = 'https://github.com/henderea/rbe'
   spec.license     = 'MIT'
 
@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.7'
   spec.add_development_dependency 'rake', '~> 10.4'
 
-  spec.add_dependency 'everyday_thor_util', '~> 2.0', '>= 2.0.4'
+  spec.add_dependency 'everyday_thor_util', '~> 2.0', '>= 2.0.5'
   spec.add_dependency 'thor', '~> 0.19'
   spec.add_dependency 'ruby-keychain', '~> 0.2', '>= 0.2.1'
   spec.add_dependency 'everyday_natsort', '~> 1.0', '>= 1.0.3'
