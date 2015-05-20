@@ -4,25 +4,18 @@ TODO: Write a gem description
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
-    gem 'rbe'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install rbe
+    gem sources -a https://repo.fury.io/henderea/
+    gem install rbe
 
 ## Usage
 
 TODO: Write usage instructions here
 
+Until I get documentation written, use `rbe help` and related commands to see the help info.  You may need to look at the source code (<https://github.com/henderea/rbe>) to fully understand the utility.
+
 ## Contributing
 
-1. Fork it ( https://github.com/[my-github-username]/rbe/fork )
+1. Fork it ( https://github.com/henderea/rbe/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
