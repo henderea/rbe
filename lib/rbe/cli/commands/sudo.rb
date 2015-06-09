@@ -5,4 +5,4 @@ root_command[:sudo] = command(aliases: %w(s), short_desc: 'sudo COMMAND ARGS...'
   run_sudo(options[:rvm_sudo] ? 'rvmsudo' : 'sudo', cmd, [], args)
 }
 
-root_command[:sudo][:rvm_sudo] = flag(aliases: %w(-r), type: :boolean, desc: 'use rvmsudo instead of sudo')
+root_command[:sudo][:rvm_sudo] = flag(type: :boolean, desc: 'use rvmsudo instead of sudo')
