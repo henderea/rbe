@@ -27,6 +27,7 @@ root_command[:alias][:update] = command(aliases: %w(up), short_desc: 'update [pr
   IO.write(File.expand_path('~/rbe_reload.sh'),
 <<EOS
 function rbe_reload {
+    #{prefix}
     rbe alias update
     source ~/rbe_reload.sh
     source ~/rbe_aliases.sh
