@@ -5,12 +5,14 @@ include EverydayThorUtil::Builder
 
 root_command[:alias] = command(short_desc: 'alias SUBCOMMAND ARGS...', desc: 'configure command bash aliases')
 
-root_command[:alias][:add] = command(short_desc: 'add cmd_id', desc: 'register an alias') { |cmd_id|
-  if Rbe::Data::DataStore.command(cmd_id).nil?
-    puts "Command with id #{cmd_id} does not seem to exist."
-  else
-    Rbe::Data::DataStore.aliases << cmd_id.to_s
-  end
+root_command[:alias][:add] = command(short_desc: 'add cmd_id...', desc: 'register an alias') { |*cmd_ids|
+  cmd_ids.each { |cmd_id|
+    if Rbe::Data::DataStore.command(cmd_id).nil?
+      puts "Command with id #{cmd_id} does not seem to exist."
+    else
+      Rbe::Data::DataStore.aliases << cmd_id.to_s
+    end
+  }
 }
 
 root_command[:alias][:remove] = command(aliases: %w(rm delete), short_desc: 'remove cmd_id', desc: 'remove an alias for a command') { |cmd_id|
@@ -25,6 +27,7 @@ root_command[:alias][:update] = command(aliases: %w(up), short_desc: 'update [pr
   IO.write(File.expand_path('~/rbe_reload.sh'),
 <<EOS
 function rbe_reload {
+    rbe alias update
     source ~/rbe_reload.sh
     source ~/rbe_aliases.sh
 }
@@ -47,6 +50,10 @@ function rce {
 function rta {
     #{prefix}
     rbe test-auth $@
+}
+function raa {
+    #{prefix}
+    rbe alias add $@
 }
 EOS
   list.each { |li|
