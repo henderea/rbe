@@ -46,7 +46,7 @@ root_command[:cmd][:exec] = command(aliases: %w(do e group-exec ge), short_desc:
 
 root_command[:cmd][:exec][:var] = flag(type: :hash, desc: 'set a temporary variable value')
 
-root_command[:cmd][:remove] = command(aliases: %w(rm unreg unregister delete), name: 'remove', short_desc: 'remove cmd_id', desc: 'remove a registered command or command group') { |cmd_id|
+root_command[:cmd][:remove] = command(aliases: %w(rm unreg unregister delete), short_desc: 'remove cmd_id', desc: 'remove a registered command or command group') { |cmd_id|
   Rbe::Data::DataStore.commands.save_local = options[:local]
   Rbe::Data::DataStore.commands.delete(cmd_id) if Rbe::Data::DataStore.commands.has_key?(cmd_id)
 }

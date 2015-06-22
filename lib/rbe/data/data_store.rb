@@ -1,5 +1,6 @@
 require_relative 'command_list'
 require_relative 'var_list'
+require_relative 'alias_list'
 require_relative 'password'
 
 module Rbe::Data
@@ -11,6 +12,10 @@ module Rbe::Data
 
       def vars
         @vars ||= Rbe::Data::VarList.new
+      end
+
+      def aliases
+        @aliases ||= Rbe::Data::AliasList.new
       end
 
       def temp_vars
