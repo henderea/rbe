@@ -67,8 +67,8 @@ EOS
   }
   IO.write(File.expand_path('~/rbe_aliases.sh'), str)
 
-  load_line = '[[ -s "$HOME/rbe_reload.sh" ]] && source "$HOME/rbe_reload.sh" && rbe_reload # Load rbe_reload.sh'
-  lines = IO.readlines(File.expand_path('~/.bash_profile')).map(&:chomp)
+  load_line = '[[ -s "$HOME/rbe_reload.sh" ]] && source "$HOME/rbe_reload.sh" && source "$HOME/rbe_aliases.sh" # Load rbe_reload.sh'
+  lines = IO.readlines(File.expand_path('~/.bashrc')).map(&:chomp)
   ind = -1
   lines.each_with_index { |l, i|
     if l.to_s.include? 'rbe_reload.sh'
@@ -82,5 +82,5 @@ EOS
     lines << load_line
   end
 
-  IO.write(File.expand_path('~/.bash_profile'), lines.join("\n"))
+  IO.write(File.expand_path('~/.bashrc'), lines.join("\n"))
 }
