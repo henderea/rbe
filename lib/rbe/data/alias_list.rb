@@ -1,24 +1,22 @@
 require 'yaml'
-require_relative 'abstract_list'
+require_relative 'abstract_global_flat_list'
 
 module Rbe::Data
-  class AliasList
-    attr_reader :list
-
-    def initialize
-      load_list
-    end
-
+  class AliasList < Rbe::Data::AbstractGlobalFlatList
     def file_name
       'aliases.rbe.yaml'
     end
 
-    def load_list
-      @list = File.exist?(File.expand_path("~/#{self.file_name}")) ? YAML::load_file(File.expand_path("~/#{self.file_name}")) : []
+    def list
+      @list
     end
 
-    def save_list
-      IO.write(File.expand_path("~/#{self.file_name}"), @list.to_yaml) unless @no_save
+    def list=(list)
+      @list = list
+    end
+
+    def include?(alias_name)
+      @list.include?(alias_name)
     end
 
     def <<(alias_name)
@@ -30,12 +28,6 @@ module Rbe::Data
     def delete(alias_name)
       @list.delete(alias_name)
       save_list
-    end
-
-    def no_save
-      @no_save = true
-      yield
-      @no_save = false
     end
   end
 end

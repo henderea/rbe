@@ -1,3 +1,5 @@
+require 'everyday_natsort_kernel'
+
 module Rbe::Data
   class AbstractList
     attr_accessor :save_local
