@@ -55,6 +55,7 @@ function rta {
 function raa {
     #{prefix}
     rbe alias add $@
+    rbe_reload
 }
 EOS
   list.each { |li|
