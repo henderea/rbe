@@ -4,15 +4,16 @@ require 'everyday_thor_util/builder'
 include EverydayThorUtil::Builder
 
 global.helpers[:print_about_text] =-> {
+  version_str = "Version #{Rbe::VERSION}"
   puts <<EOS
 
 
 ################################################################
 ################################################################
 ###                                                          ###
-###                      ##                                  ###
 ###                      ##   By Eric Henderson (henderea)   ###
 ###                      ##                                  ###
+###                      ## https://github.com/henderea/rbe  ###
 ###                      ##                                  ###
 ###    ##   ######       ## #######          #########       ###
 ###    ## ###    ###     ####    ####      ####     ####     ###
@@ -22,14 +23,14 @@ global.helpers[:print_about_text] =-> {
 ###    ##                ####   ####       ####      ####    ###
 ###    ##                #########           ##########      ###
 ###                                                          ###
-####{          "Version #{Rbe::VERSION}".center(58)         }###
+####{      "+-#{'-' * version_str.length}-+".center(58)     }###
+####{            "| #{version_str} |".center(58)            }###
+####{      "+-#{'-' * version_str.length}-+".center(58)     }###
 ###                                                          ###
 ################################################################
 ################################################################
 
 Installed at: #{$0}
-
-GitHub Repo: https://github.com/henderea/rbe
 
 EOS
 }
