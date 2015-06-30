@@ -35,6 +35,18 @@ function rta {
     #{prefix}
     rbe test-auth $@
 }
+function rccs {
+    #{prefix}
+    rbe c cmd-sort
+}
+function rvvs {
+    #{prefix}
+    rbe var var-sort
+}
+function rvls {
+    #{prefix}
+    rbe var list-sort $@
+}
 function raa {
     #{prefix}
     rbe alias add $@
