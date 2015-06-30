@@ -5,15 +5,17 @@ include EverydayThorUtil::Builder
 
 global.helpers[:print_about_text] =-> {
   version_str = "Version #{Rbe::VERSION}"
+  version_str2 = "| #{version_str} |".center(22)
+  border = "+-#{'-' * version_str.length}-+".center(22)
   puts <<EOS
 
 
 ################################################################
 ################################################################
 ###                                                          ###
-###                      ##   By Eric Henderson (henderea)   ###
-###                      ##                                  ###
-###                      ## https://github.com/henderea/rbe  ###
+####{      border       }##   By Eric Henderson (henderea)   ###
+####{   version_str2    }##                                  ###
+####{      border       }## https://github.com/henderea/rbe  ###
 ###                      ##                                  ###
 ###    ##   ######       ## #######          #########       ###
 ###    ## ###    ###     ####    ####      ####     ####     ###
@@ -22,10 +24,6 @@ global.helpers[:print_about_text] =-> {
 ###    ##                ##       ###     ###                ###
 ###    ##                ####   ####       ####      ####    ###
 ###    ##                #########           ##########      ###
-###                                                          ###
-####{      "+-#{'-' * version_str.length}-+".center(58)     }###
-####{            "| #{version_str} |".center(58)            }###
-####{      "+-#{'-' * version_str.length}-+".center(58)     }###
 ###                                                          ###
 ################################################################
 ################################################################
