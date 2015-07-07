@@ -10,9 +10,20 @@ global.helpers[:register_temp_vars] =->(vars) {
 global.helpers[:subs_vars] =->(cmd_arr, arr, prompt_if_missing_required = false) {
   ind_to_remove = []
   cmd_arr2      = cmd_arr.map { |v|
-    v.gsub(/{{([#]?[\w\d]+)(?:[=][>](\d+))?}}/) { |_|
+    v.gsub(%r{[{][{]([#]?[\w\d]+)(?:[=][>](\d+))?(?:~/(.+)/[?][{](.*)[}][:][{](.*)[}])?[}][}]}) { |_|
       ind_to_remove << $2.to_i if arr.count > 0 && $2 && arr[$2.to_i]
-      Rbe::Data::DataStore.var($1, prompt_if_missing_required, arr.count > 0 && $2 && arr[$2.to_i])
+      v = Rbe::Data::DataStore.var($1, prompt_if_missing_required, arr.count > 0 && $2 && arr[$2.to_i])
+      if $3
+        t = $4
+        f = $5
+        if v =~ /#{$3}/
+          t
+        else
+          f
+        end
+      else
+        v
+      end
     }
   }
   arr2          = [].replace(arr)
@@ -23,10 +34,21 @@ global.helpers[:subs_vars] =->(cmd_arr, arr, prompt_if_missing_required = false)
 global.helpers[:get_vars] =->(cmd_arr, arr) {
   ind_to_remove = []
   cmd_arr.each { |v|
-    v.scan(/{{([#]?[\w\d]+)(?:[=][>](\d+))?}}/) { |vname, ind|
+    v.scan(%r{[{][{]([#]?[\w\d]+)(?:[=][>](\d+))?(?:~/(.+)/[?][{](.*)[}][:][{](.*)[}])?[}][}]}) { |vname, ind|
       unless vname == '_' || vname == '#_'
         ind_to_remove << ind.to_i if arr.count > 0 && ind && arr[ind.to_i]
-        Rbe::Data::DataStore.var(vname, true, arr.count > 0 && ind && arr[ind.to_i])
+        v = Rbe::Data::DataStore.var(vname, true, arr.count > 0 && ind && arr[ind.to_i])
+        if $3
+          t = $4
+          f = $5
+          if v =~ /#{$3}/
+            t
+          else
+            f
+          end
+        else
+          v
+        end
       end
     }
   }
@@ -37,7 +59,7 @@ global.helpers[:get_vars] =->(cmd_arr, arr) {
 
 global.helpers[:count_ind_vars] =->(cmd, cmd_arr) {
   inds = [cmd, *cmd_arr].map { |v|
-    v.scan(/{{[#]?_(?:[=][>](\d+))}}/).map { |v2|
+    v.scan(%r{[{][{][#]?_(?:[=][>](\d+))(?:~/(.+)/[?][{](.*)[}][:][{](.*)[}])?[}][}]}).map { |v2|
       v2[0].to_i
     }
   }.flatten.uniq
