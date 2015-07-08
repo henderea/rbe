@@ -54,12 +54,25 @@ module Rbe::Data
     def get(var_name, prompt_if_missing_required = false, default = nil)
       required = var_name[0] == '#'
       var_name = var_name[1..-1] if required
-      get_temp_var(var_name) ||
+      get_system_var(var_name) ||
+          get_temp_var(var_name) ||
           get_reg_var(var_name) ||
           get_default(var_name, default) ||
           get_required_prompt(var_name, required, prompt_if_missing_required) ||
           get_required(var_name, required) ||
           nil
+    end
+
+    def get_system_var(var_name)
+      %w(PWD WDNAME).include?(var_name) && -> {
+        if var_name == 'PWD'
+          Dir.getwd
+        elsif var_name == 'WDNAME'
+          File.basename(Dir.getwd)
+        else
+          nil
+        end
+      }.call
     end
 
     def get_temp_var(var_name)
